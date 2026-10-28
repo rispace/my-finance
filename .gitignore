@@ -1,0 +1,4 @@
+.DS_Store
+# Never commit personal backups
+*backup*.json
+finance-*.json
