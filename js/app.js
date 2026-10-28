@@ -6,7 +6,7 @@ import * as store from "./store.js";
 import * as auth from "./auth.js";
 import * as drive from "./drive.js";
 import { syncNow } from "./sync.js";
-import { initSheet, closeSheet, toast } from "./ui.js";
+import { initSheet, closeSheet, openSheet, toast } from "./ui.js";
 import { timeAgo } from "./util.js";
 import * as quotes from "./quotes.js";
 
@@ -18,7 +18,7 @@ import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEdit
 import { assetsView, assetFormView, assetValueView, stockFormView, cashFormView } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.1.0";
+export const APP_VERSION = "1.1.1";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes
@@ -90,7 +90,6 @@ const $view = document.getElementById("view");
 export function render({ keepScroll = false } = {}) {
     route = currentRoute();
     document.querySelectorAll("[data-nav]").forEach((el) => el.classList.toggle("active", el.dataset.nav === route.nav));
-    document.querySelector(".tab-add")?.classList.toggle("active", route.nav === "add");
     const y = window.scrollY;
     try {
         route.view({ el: $view, params: route.params, query: route.query, rerender: () => render({ keepScroll: true }) });
@@ -98,8 +97,50 @@ export function render({ keepScroll = false } = {}) {
         console.error(error);
         $view.innerHTML = `<section class="card"><div class="empty"><strong>Something went wrong on this screen</strong>${String(error.message || error)}</div></section>`;
     }
+    if (!route.isForm) addQuickAddButton();
     window.scrollTo(0, keepScroll ? y : 0);
     renderChip();
+}
+
+// ------------------------------------------------------------- quick add (+)
+// On phones the + sits on the title row of every main screen (the tab bar
+// holds the five sections). It opens a short menu of the common entries.
+
+function addQuickAddButton() {
+    const head = $view.querySelector(".page-head");
+    if (!head || head.querySelector(".head-add")) return;
+    head.classList.add("has-add");
+    head.insertAdjacentHTML("beforeend",
+        `<button type="button" class="head-add" aria-label="Add" aria-haspopup="dialog"><svg width="26" height="26"><use href="#i-plus"/></svg></button>`);
+    const button = head.querySelector(".head-add");
+    button.addEventListener("click", openQuickAdd);
+    // Centre it on the page title (some pages have a back link above it).
+    const h1 = head.querySelector("h1");
+    if (h1 && button.offsetHeight) {
+        const headTop = head.getBoundingClientRect().top;
+        const box = h1.getBoundingClientRect();
+        button.style.top = `${Math.round(box.top - headTop + box.height / 2 - button.offsetHeight / 2)}px`;
+    }
+}
+
+function openQuickAdd() {
+    const cards = store.all("cards").length;
+    const loans = store.all("loans");
+    const items = [
+        ["#/add", "i-list", "Add spending", "A purchase, bill or other expense"],
+        ["#/earning/new", "i-income", "Add earning", "Paycheck, side income, interest or refund"],
+        cards ? ["#/record", "i-card", "Record card charge or payment", "Updates a credit card balance"]
+              : ["#/card/new", "i-card", "Add a credit card", "Track balances and utilization"],
+        ...(loans.length ? [[loans.length === 1 ? `#/loan/${encodeURIComponent(loans[0].id)}/pay` : "#/loans", "i-chart", "Record loan payment", loans.length === 1 ? loans[0].name : "Choose a loan"]] : []),
+    ];
+    // What you're looking at goes first.
+    if (route?.nav === "earnings") items.unshift(items.splice(1, 1)[0]);
+    if (route?.nav === "debt") items.unshift(items.splice(2, 1)[0]);
+    openSheet("Add", `<ul class="list quick-add">${items.map(([href, icon, title, sub]) => `
+        <li><a class="row" href="${href}">
+            <span class="dot quick-icon" aria-hidden="true"><svg width="20" height="20"><use href="#${icon}"/></svg></span>
+            <span class="row-main"><span class="row-title" style="display:block">${title}</span><span class="row-sub" style="display:block">${sub}</span></span>
+        </a></li>`).join("")}</ul>`);
 }
 
 export function navigate(hash, { replace = false } = {}) {

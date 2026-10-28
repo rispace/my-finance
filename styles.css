@@ -694,7 +694,7 @@ button.link:hover { background: none; text-decoration: underline; }
 .boot { display: grid; place-items: center; min-height: 40vh; color: var(--muted); }
 
 /* earnings */
-@media (max-width: 899px) { .tabbar { grid-template-columns: repeat(6, 1fr); } .tab { font-size: 10.5px; } }
+@media (max-width: 899px) { .tabbar { grid-template-columns: repeat(5, 1fr); } }
 .trend.dual .pair { display: flex; align-items: flex-end; justify-content: center; gap: 2px; width: 100%; height: 100%; }
 .trend.dual .col { max-width: 15px; flex: 1; }
 .trend.dual .col.earned { background: color-mix(in srgb, var(--accent) 45%, var(--track)); }
@@ -740,3 +740,19 @@ button.link:hover { background: none; text-decoration: underline; }
 .site-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px;
   max-width: 1080px; width: 100%; margin: 0 auto; padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+
+/* quick add (+) on the title row — phones only; desktop has the sidebar button */
+.head-add { display: none; }
+@media (max-width: 899px) {
+  .page-head.has-add { position: relative; }
+  .page-head.has-add > div:first-child { padding-right: 64px; }
+  .head-add {
+    display: grid; place-items: center; position: absolute; top: 0; right: 0;
+    width: 52px; height: 52px; min-height: 52px; padding: 0; border-radius: 16px;
+    background: var(--accent); color: var(--on-accent);
+    box-shadow: 0 6px 18px rgb(31 107 71 / 30%);
+  }
+}
+.quick-add .row { color: inherit; text-decoration: none; }
+.quick-add .row:hover { background: var(--surface-2); }
+.quick-icon { background: var(--accent-soft); color: var(--accent); border-radius: 12px; width: 40px; height: 40px; }
