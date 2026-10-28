@@ -13,11 +13,12 @@ import * as quotes from "./quotes.js";
 import { overviewView } from "./views/overview.js";
 import { activityView, transactionFormView } from "./views/activity.js";
 import { budgetView } from "./views/budget.js";
+import { earningsView, earningFormView, earningsImportView } from "./views/earnings.js";
 import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEditView, loansView, loanDetailView, loanFormView, loanPaymentView } from "./views/debt.js";
 import { assetsView, assetFormView, assetValueView, stockFormView, cashFormView } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.1.0";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes
@@ -28,6 +29,10 @@ const ROUTES = [
     ["add", transactionFormView, "add", true],
     ["tx/:id", transactionFormView, "activity", true],
     ["budget", budgetView, "overview", true],
+    ["earnings", earningsView, "earnings"],
+    ["earning/new", earningFormView, "earnings", true],
+    ["earning/:id", earningFormView, "earnings", true],
+    ["import-earnings", earningsImportView, "earnings", true],
     ["cards", cardsView, "debt"],
     ["card/new", cardFormView, "debt", true],
     ["card/:id/edit", cardEditView, "debt", true],

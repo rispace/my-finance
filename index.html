@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Finance</title>
-    <meta name="description" content="Track spending, budgets, credit cards, loans and assets. Your data stays on your device and in your own Google Drive.">
+    <meta name="description" content="Track spending, earnings, budgets, credit cards, loans and assets. Your data stays on your device and in your own Google Drive.">
     <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
     <link rel="manifest" href="manifest.webmanifest">
@@ -23,6 +23,7 @@
         <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
         <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
         <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></symbol>
+        <symbol id="i-income" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
         <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
         <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
         <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></symbol>
@@ -41,11 +42,13 @@
         <a class="btn" href="#/add"><svg><use href="#i-plus"/></svg>Add transaction</a>
         <a class="nav-link" data-nav="overview" href="#/"><svg><use href="#i-home"/></svg>Overview</a>
         <a class="nav-link" data-nav="activity" href="#/activity"><svg><use href="#i-list"/></svg>Transactions</a>
+        <a class="nav-link" data-nav="earnings" href="#/earnings"><svg><use href="#i-income"/></svg>Earnings</a>
         <a class="nav-link" data-nav="debt" href="#/cards"><svg><use href="#i-card"/></svg>Debt</a>
         <a class="nav-link" data-nav="assets" href="#/assets"><svg><use href="#i-chart"/></svg>Assets</a>
         <div class="spacer"></div>
         <button type="button" class="sync-chip" data-sync-chip>Loading…</button>
         <a class="nav-link" data-nav="settings" href="#/settings"><svg><use href="#i-gear"/></svg>Settings</a>
+        <div class="site-links faint" style="padding:8px 12px 0;font-size:12px"><a href="about.html">About</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
     </aside>
 
     <header class="topbar">
@@ -66,6 +69,7 @@
     <nav class="tabbar" aria-label="Main navigation">
         <a class="tab" data-nav="overview" href="#/"><svg><use href="#i-home"/></svg>Home</a>
         <a class="tab" data-nav="activity" href="#/activity"><svg><use href="#i-list"/></svg>Activity</a>
+        <a class="tab" data-nav="earnings" href="#/earnings"><svg><use href="#i-income"/></svg>Earnings</a>
         <a class="tab-add" href="#/add" aria-label="Add transaction"><svg><use href="#i-plus"/></svg></a>
         <a class="tab" data-nav="debt" href="#/cards"><svg><use href="#i-card"/></svg>Debt</a>
         <a class="tab" data-nav="assets" href="#/assets"><svg><use href="#i-chart"/></svg>Assets</a>

@@ -155,3 +155,64 @@ export async function saveFile(name, text, type = "text/csv") {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
 }
+
+// ------------------------------------------------------------ earnings
+
+export const EARNING_HEADERS = ["Date", "Source", "Amount (USD)", "Type", "Deposited to", "Notes"];
+
+export function earningsCsv(items, typeName, accountName) {
+    return toCsv(EARNING_HEADERS, items.map((e) => [
+        e.date, e.description, centsToInput(e.amountCents), typeName(e.type), accountName(e.accountId), e.notes || "",
+    ]));
+}
+
+/**
+ * Earnings CSV -> new records. `types` is [[key, label]]; a Type column may
+ * hold either. Unknown types become "other"; unknown accounts are created.
+ */
+export function buildEarningsCsvImport(text, live, { skipDuplicates = true, newId, types }) {
+    const rows = parseCsv(text);
+    const header = (rows.shift() || []).map((h) => h.trim());
+    const col = (name) => header.indexOf(name);
+    const missing = ["Date", "Source", "Amount (USD)"].filter((h) => col(h) < 0);
+    if (missing.length) return { errors: [`Missing column(s): ${missing.join(", ")}.`], created: 0, skipped: 0 };
+    const typeByText = new Map(types.flatMap(([k, l]) => [[fold(k), k], [fold(l), k]]));
+    const accounts = new Map(live.accounts.map((a) => [fold(a.name), a.id]));
+    const existing = new Set(live.earnings.map((e) => `${e.date}|${e.description}|${e.amountCents}`));
+    const now = new Date().toISOString();
+    const changes = { accounts: [], earnings: [] };
+    const errors = [];
+    let created = 0, skipped = 0;
+    rows.forEach((row, index) => {
+        const value = (name) => (col(name) >= 0 ? (row[col(name)] || "").trim() : "");
+        const date = value("Date");
+        const amountCents = toCents(value("Amount (USD)"));
+        if (!isDay(date) || !amountCents || amountCents <= 0) {
+            errors.push(`Row ${index + 2}: needs a YYYY-MM-DD date and a positive amount.`);
+            return;
+        }
+        const description = value("Source").slice(0, 200) || "Imported";
+        const key = `${date}|${description}|${amountCents}`;
+        if (skipDuplicates && existing.has(key)) { skipped += 1; return; }
+        existing.add(key);
+        let accountId = null;
+        const accountName = value("Deposited to").slice(0, 60);
+        if (accountName && accountName !== "—") {
+            accountId = accounts.get(fold(accountName));
+            if (!accountId) {
+                accountId = newId();
+                accounts.set(fold(accountName), accountId);
+                changes.accounts.push({ id: accountId, name: accountName, kind: "debit", archived: false });
+            }
+        }
+        let notes = value("Notes");
+        if (notes.startsWith("'")) notes = notes.slice(1);
+        changes.earnings.push({
+            id: newId(), date, description, amountCents,
+            type: typeByText.get(fold(value("Type"))) || "other",
+            accountId, notes, createdAt: now,
+        });
+        created += 1;
+    });
+    return { changes, created, skipped, errors };
+}

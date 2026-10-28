@@ -2,7 +2,7 @@
 // it opens instantly, even with no signal) and refreshed in the background.
 // Google requests always go to the network.
 
-const CACHE = "finance-drive-v2"; // bump on every release
+const CACHE = "finance-drive-v3"; // bump on every release
 const SHELL = [
     "./",
     "index.html",
@@ -26,12 +26,18 @@ const SHELL = [
     "js/views/assets.js",
     "js/views/budget.js",
     "js/views/debt.js",
+    "js/views/earnings.js",
     "js/views/overview.js",
     "js/views/settings.js",
     "icons/favicon.svg",
     "icons/apple-touch-icon.png",
     "icons/icon-192.png",
     "icons/icon-512.png",
+    "icons/logo-120.png",
+    "icons/logo-256.png",
+    "about.html",
+    "privacy.html",
+    "terms.html",
 ];
 
 self.addEventListener("install", (event) => {

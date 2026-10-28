@@ -4,12 +4,12 @@
 import * as db from "../db.js";
 import * as store from "../store.js";
 import * as auth from "../auth.js";
-import { ACCOUNT_KINDS, FINNHUB_PREF_ID, uniqueName } from "../calc.js";
+import { ACCOUNT_KINDS, FINNHUB_PREF_ID, EARNING_TYPES, label, uniqueName } from "../calc.js";
 import { esc, today, timeAgo, byName, newId, plural, squash } from "../util.js";
 import { formPageHtml, readForm, showErrors, parse, openSheet, toast, confirmAction } from "../ui.js";
 import { navigate, startSignIn, runSync, syncState, timings, APP_VERSION } from "../app.js";
 import { buildImport, buildStarter } from "../importer.js";
-import { buildCsvImport, transactionsCsv, saveFile } from "../csv.js";
+import { buildCsvImport, transactionsCsv, earningsCsv, saveFile } from "../csv.js";
 import { lookups } from "./activity.js";
 import * as quotes from "../quotes.js";
 
@@ -85,7 +85,7 @@ export function settingsView({ el, rerender }) {
         <div class="stack">
             <section class="card" id="payment-methods">
                 <div class="card-head">
-                    <h2>Payment methods</h2>
+                    <h2>Payment methods &amp; accounts</h2>
                     <a class="btn btn-small" href="#/account/new"><svg width="16" height="16"><use href="#i-plus"/></svg>Add</a>
                 </div>
                 <div class="tag-list">
@@ -98,12 +98,14 @@ export function settingsView({ el, rerender }) {
                 <ul class="list">
                     <li class="row"><div class="row-main"><div class="row-title">Import backup (JSON)</div><div class="row-sub">From the old web app (Settings → Full backup) or from this app. Safe to repeat.</div></div>
                         <label class="btn btn-secondary btn-small file-button">Choose file<input type="file" accept="application/json,.json" data-import></label></li>
-                    <li class="row"><div class="row-main"><div class="row-title">Full backup (JSON)</div><div class="row-sub">Everything: transactions, budgets, cards, loans, assets, holdings</div></div>
+                    <li class="row"><div class="row-main"><div class="row-title">Full backup (JSON)</div><div class="row-sub">Everything: transactions, earnings, budgets, cards, loans, assets, holdings</div></div>
                         <button type="button" class="btn btn-secondary btn-small" data-backup>Download</button></li>
                     <li class="row"><div class="row-main"><div class="row-title">Transactions (CSV)</div><div class="row-sub">Opens in Excel / Numbers</div></div>
                         <button type="button" class="btn btn-secondary btn-small" data-csv>Download</button></li>
                     <li class="row"><div class="row-main"><div class="row-title">Import transactions</div><div class="row-sub">From a CSV in the same format</div></div>
                         <a class="btn btn-secondary btn-small" href="#/import-csv">Import</a></li>
+                    <li class="row"><div class="row-main"><div class="row-title">Earnings (CSV)</div><div class="row-sub">Export all earnings, or import from a CSV</div></div>
+                        <span class="cc-actions"><button type="button" class="btn btn-secondary btn-small" data-earnings-csv>Download</button><a class="btn btn-secondary btn-small" href="#/import-earnings">Import</a></span></li>
                     ${categories.length ? "" : `<li class="row"><div class="row-main"><div class="row-title">Starter categories</div><div class="row-sub">Housing, Food, Transportation… edit later</div></div>
                         <button type="button" class="btn btn-secondary btn-small" data-starter>Add</button></li>`}
                 </ul>
@@ -115,6 +117,19 @@ export function settingsView({ el, rerender }) {
                     <li class="row"><div class="row-main"><div class="row-title">Finnhub API key</div><div class="row-sub">${quotes.apiKey() ? "Set — live prices are on" : "Not set — live prices are off (free at finnhub.io)"}</div></div>
                         <a class="btn btn-secondary btn-small" href="#/finnhub">${quotes.apiKey() ? "Change" : "Add"}</a></li>
                 </ul>
+            </section>
+
+            <section class="card">
+                <div class="card-head"><h2>About</h2></div>
+                <p class="muted small">Finance is free and open source. There is no server: your data stays on your devices and in your own Google Drive.</p>
+                <div class="site-links">
+                    <a href="about.html" target="_blank" rel="noopener">About the app</a>
+                    <a href="about.html#install" target="_blank" rel="noopener">Install on another device</a>
+                    <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>
+                    <a href="terms.html" target="_blank" rel="noopener">Terms</a>
+                    <a href="https://github.com/rispace/my-finance" target="_blank" rel="noopener">Source code</a>
+                    <a href="https://github.com/rispace/my-finance/issues" target="_blank" rel="noopener">Report a problem</a>
+                </div>
             </section>
 
             <section class="card">
@@ -154,6 +169,10 @@ export function settingsView({ el, rerender }) {
     q("[data-csv]").addEventListener("click", () => {
         const items = [...data.transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
         saveFile(`expenses-${today()}.csv`, transactionsCsv(items, lookups()));
+    });
+    q("[data-earnings-csv]").addEventListener("click", () => {
+        const items = [...data.earnings].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+        saveFile(`earnings-${today()}.csv`, earningsCsv(items, (k) => label(EARNING_TYPES, k || "other"), (id) => store.get("accounts", id)?.name || ""));
     });
     q("[data-erase]").addEventListener("click", async () => {
         if (!confirmAction("Erase all finance data stored on this device and sign out? Your Google Drive copy is not touched and comes back when you sign in again.")) return;

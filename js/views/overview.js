@@ -1,12 +1,12 @@
 // Overview (the web app's dashboard.html).
 
 import * as store from "../store.js";
-import { dashboard, ASSET_KINDS, label } from "../calc.js";
+import { dashboard, earningsSummary, ASSET_KINDS, label } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, cssPct, today, monthOf, isMonth, shiftMonth,
-    fmtMonthLong, fmtMonthName, fmtMonthShort, fmtDay, fmtDayNoYear, fmtMonthYearShort, initials, timeAgo, plural,
+    fmtMonthLong, fmtMonthName, fmtMonthShort, fmtDay, fmtDayNoYear, fmtMonthYearShort, initials, timeAgo, plural, newId,
 } from "../util.js";
-import { donutHtml, bindDonuts, openSheet } from "../ui.js";
+import { donutHtml, bindDonuts, openSheet, toast } from "../ui.js";
 import { navigate, refreshQuotesIfStale } from "../app.js";
 import * as quotes from "../quotes.js";
 
@@ -21,7 +21,8 @@ export function overviewView({ el, query }) {
     const monthName = fmtMonthName(month);
     const debt = d.debt;
     const folio = d.portfolio;
-    const firstRun = !data.transactions.length && !data.categories.length && !data.cards.length;
+    const firstRun = !data.transactions.length && !data.categories.length && !data.cards.length && !data.earnings.length;
+    const flow = earningsSummary(data, month, day);
 
     el.innerHTML = `
     <div class="page-head">
@@ -41,9 +42,13 @@ export function overviewView({ el, query }) {
 
     ${firstRun ? `
     <section class="card empty-hero" style="margin-bottom:16px">
-        <h2>Welcome! Let’s bring your data in.</h2>
-        <p class="muted">Import the JSON backup from the old web app, or start fresh with starter categories.</p>
-        <div class="form-actions"><a class="btn" href="#/settings">Import or start fresh</a></div>
+        <h2>Welcome to Finance 👋</h2>
+        <p class="muted">Track spending, earnings, budgets, credit cards, loans and what you own. Everything stays on this device and, if you sign in, in a private folder in <em>your own</em> Google Drive.</p>
+        <div class="form-actions">
+            <button type="button" class="btn" data-starter>Start with starter categories</button>
+            <a class="btn btn-secondary" href="#/settings">Sign in or import a backup</a>
+        </div>
+        <p class="faint small" style="margin-top:12px">Coming from the older Personal Finance web app? Settings → Import backup brings everything across.</p>
     </section>` : ""}
 
     <div class="grid grid-4">
@@ -122,6 +127,23 @@ export function overviewView({ el, query }) {
         <div class="stack">
             <section class="card">
                 <div class="card-head">
+                    <h2>Cash flow · ${esc(monthName)}</h2>
+                    <a href="#/earnings?m=${month}">Earnings</a>
+                </div>
+                ${flow.monthTotal || flow.spent ? `
+                <div class="cashflow">
+                    <div><span>Earned</span><strong class="good">${money(flow.monthTotal, 0)}</strong></div>
+                    <div><span>Spent</span><strong>${money(flow.spent, 0)}</strong></div>
+                    <div><span>${flow.saved >= 0 ? "Saved" : "Overspent"}</span><strong class="${flow.saved >= 0 ? "" : "bad"}">${money(Math.abs(flow.saved), 0)}</strong></div>
+                </div>
+                ${flow.savingsRate !== null ? `<div class="bar thick" style="margin:12px 0 4px"><span class="${flow.saved < 0 ? "high" : ""}" style="width:${cssPct(flow.monthTotal ? (flow.spent / flow.monthTotal) * 100 : 100)}%"></span></div>
+                <p class="muted small" style="margin:0">${flow.saved >= 0 ? `You kept ${pct(flow.savingsRate, 0)} of what you earned.` : `Spending is ${pct(-flow.savingsRate, 0)} above earnings.`}</p>`
+                : `<p class="muted small" style="margin:10px 0 0"><a href="#/earning/new">Add your earnings</a> to see how much you saved.</p>`}
+                ` : `<div class="empty"><strong>Nothing yet for ${esc(fmtMonthLong(month))}</strong><a href="#/earning/new">Add earnings</a> or <a href="#/add">spending</a>.</div>`}
+            </section>
+
+            <section class="card">
+                <div class="card-head">
                     <h2>Recently added</h2>
                     <a href="#/activity">All activity</a>
                 </div>
@@ -197,6 +219,12 @@ export function overviewView({ el, query }) {
     </div>`;
 
     el.querySelector("[data-month-select]").addEventListener("change", (e) => navigate(`/?m=${e.target.value}`));
+    el.querySelector("[data-starter]")?.addEventListener("click", async () => {
+        const { buildStarter } = await import("../importer.js");
+        await store.mergeIn(buildStarter(newId));
+        toast("Starter categories added — edit them any time in Settings.");
+        navigate("/add");
+    });
     el.querySelector("[data-see-all]").addEventListener("click", (e) => {
         e.preventDefault();
         import("./activity.js").then(({ setActivityFilters }) => {

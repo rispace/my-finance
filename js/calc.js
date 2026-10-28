@@ -538,3 +538,67 @@ export function uniqueName(list, name, exceptId, scope = () => true) {
 }
 
 export { monthIndex };
+
+// ------------------------------------------------------------ earnings
+
+export const EARNING_TYPES = [
+    ["salary", "Salary / wages"],
+    ["side", "Side income / freelance"],
+    ["investment", "Interest & dividends"],
+    ["refund", "Refunds & reimbursements"],
+    ["gift", "Gifts"],
+    ["other", "Other"],
+];
+export const EARNING_COLORS = { salary: "#2f6f4f", side: "#3b82c4", investment: "#8b5cc6", refund: "#d08a2c", gift: "#c2558f", other: "#6b7a8f" };
+
+export function filterEarnings(earnings, f) {
+    const q = fold(f.q || "").trim();
+    return earnings.filter((e) =>
+        (!q || fold(e.description).includes(q) || fold(e.notes).includes(q)) &&
+        (!f.type || e.type === f.type) &&
+        (!f.account || e.accountId === f.account) &&
+        (!f.from || e.date >= f.from) &&
+        (!f.to || e.date <= f.to));
+}
+
+/** Monthly earnings picture: totals, 12-month earned-vs-spent trend, by type. */
+export function earningsSummary(data, month, todayDay) {
+    const sumIn = (list, m) => sum(list.filter((x) => monthOf(x.date) === m), (x) => x.amountCents);
+    const inMonth = data.earnings.filter((e) => monthOf(e.date) === month);
+    const monthTotal = sum(inMonth, (e) => e.amountCents);
+    const previousMonth = shiftMonth(month, -1);
+    const previousTotal = sumIn(data.earnings, previousMonth);
+    const spent = sumIn(data.transactions, month);
+    const year = month.slice(0, 4);
+    const yearToDate = sum(data.earnings.filter((e) => e.date.slice(0, 4) === year && monthOf(e.date) <= month), (e) => e.amountCents);
+
+    const trend = [];
+    for (let i = 11; i >= 0; i--) {
+        const m = shiftMonth(month, -i);
+        trend.push({ month: m, earned: sumIn(data.earnings, m), spent: sumIn(data.transactions, m), selected: m === month });
+    }
+    const trendMax = Math.max(0, ...trend.map((t) => Math.max(t.earned, t.spent)));
+    for (const t of trend) {
+        t.earnedHeight = trendMax ? (t.earned / trendMax) * 100 : 0;
+        t.spentHeight = trendMax ? (t.spent / trendMax) * 100 : 0;
+        t.saved = t.earned - t.spent;
+    }
+    const withData = trend.filter((t) => t.earned > 0);
+    const averageMonth = withData.length ? Math.round(sum(withData, (t) => t.earned) / withData.length) : 0;
+
+    const byType = EARNING_TYPES.map(([key, name]) => {
+        const total = sum(inMonth.filter((e) => (e.type || "other") === key), (e) => e.amountCents);
+        return { key, name, total, color: EARNING_COLORS[key], share: monthTotal ? (total / monthTotal) * 100 : 0 };
+    }).filter((r) => r.total > 0).sort((a, b) => b.total - a.total);
+
+    const saved = monthTotal - spent;
+    return {
+        month, previousMonth, monthTotal, monthCount: inMonth.length, previousTotal,
+        changePct: previousTotal ? ((monthTotal - previousTotal) / previousTotal) * 100 : null,
+        spent, saved, savingsRate: monthTotal ? (saved / monthTotal) * 100 : null,
+        yearToDate, averageMonth, trend, byType,
+        isCurrentMonth: month === monthOf(todayDay),
+        monthEnd: `${month}-${String(daysInMonth(month)).padStart(2, "0")}`,
+        monthOptions: monthOptions([...data.earnings, ...data.transactions], month, monthOf(todayDay)),
+    };
+}
