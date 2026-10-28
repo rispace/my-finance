@@ -2,7 +2,7 @@
 // it opens instantly, even with no signal) and refreshed in the background.
 // Google requests always go to the network.
 
-const CACHE = "finance-drive-v1";
+const CACHE = "finance-drive-v2"; // bump on every release
 const SHELL = [
     "./",
     "index.html",
@@ -11,11 +11,23 @@ const SHELL = [
     "manifest.webmanifest",
     "js/app.js",
     "js/auth.js",
+    "js/calc.js",
+    "js/csv.js",
     "js/db.js",
     "js/drive.js",
     "js/importer.js",
     "js/merge.js",
+    "js/quotes.js",
+    "js/store.js",
     "js/sync.js",
+    "js/ui.js",
+    "js/util.js",
+    "js/views/activity.js",
+    "js/views/assets.js",
+    "js/views/budget.js",
+    "js/views/debt.js",
+    "js/views/overview.js",
+    "js/views/settings.js",
     "icons/favicon.svg",
     "icons/apple-touch-icon.png",
     "icons/icon-192.png",

@@ -2,3 +2,4 @@
 # Never commit personal backups
 *backup*.json
 finance-*.json
+!tests/fixture-backup.json

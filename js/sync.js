@@ -42,6 +42,10 @@ export async function syncNow(token) {
         const local = await db.readAll();
         const { merged, localChanges, remoteChanged } = mergeData(local, remote, db.COLLECTIONS);
         const pulled = await db.putIfNewer(localChanges);
+        // Keep collections this version doesn't know about (from a newer
+        // version on another device) instead of dropping them from Drive.
+        const extras = Object.fromEntries(Object.entries(remote).filter(([name]) => !db.COLLECTIONS.includes(name)));
+        const upload = { ...extras, ...merged };
 
         if (file && !remoteChanged) {
             await db.setMeta("driveFileId", file.id);
@@ -52,10 +56,10 @@ export async function syncNow(token) {
             // Another device saved while we were merging? Start over with its copy.
             const latest = await drive.getVersion(token, file.id);
             if (latest !== file.version) continue;
-            await drive.update(token, file.id, payloadFor(merged));
+            await drive.update(token, file.id, payloadFor(upload));
             await db.setMeta("driveFileId", file.id);
         } else {
-            const created = await drive.create(token, payloadFor(merged));
+            const created = await drive.create(token, payloadFor(upload));
             await db.setMeta("driveFileId", created.id);
         }
         return { pulled, pushed: true };
