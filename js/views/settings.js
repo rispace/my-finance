@@ -4,8 +4,8 @@
 import * as db from "../db.js";
 import * as store from "../store.js";
 import * as auth from "../auth.js";
-import { ACCOUNT_KINDS, FINNHUB_PREF_ID, EARNING_TYPES, label, uniqueName } from "../calc.js";
-import { esc, today, timeAgo, byName, newId, plural, squash } from "../util.js";
+import { ACCOUNT_KINDS, FINNHUB_PREF_ID, CURRENCY_PREF_ID, EARNING_TYPES, label, uniqueName } from "../calc.js";
+import { esc, today, timeAgo, byName, newId, plural, squash, CURRENCIES, currencyCode } from "../util.js";
 import { formPageHtml, readForm, showErrors, parse, openSheet, toast, confirmAction } from "../ui.js";
 import { navigate, startSignIn, runSync, syncState, timings, APP_VERSION } from "../app.js";
 import { buildImport, buildStarter } from "../importer.js";
@@ -112,6 +112,17 @@ export function settingsView({ el, rerender }) {
             </section>
 
             <section class="card">
+                <div class="card-head"><h2>Currency</h2></div>
+                <div class="field" style="margin:0">
+                    <label for="f-currency">Show amounts in</label>
+                    <select id="f-currency" data-currency>
+                        ${CURRENCIES.map((c) => `<option value="${c.code}" ${c.code === currencyCode() ? "selected" : ""}>${esc(c.name)} (${c.code})</option>`).join("")}
+                    </select>
+                    <p class="help">Only the symbol and number style change; your amounts stay the same. Live stock prices are in US dollars.</p>
+                </div>
+            </section>
+
+            <section class="card">
                 <div class="card-head"><h2>Stock prices</h2></div>
                 <ul class="list">
                     <li class="row"><div class="row-main"><div class="row-title">Finnhub API key</div><div class="row-sub">${quotes.apiKey() ? "Set — live prices are on" : "Not set — live prices are off (free at finnhub.io)"}</div></div>
@@ -160,6 +171,11 @@ export function settingsView({ el, rerender }) {
     q("[data-sync]")?.addEventListener("click", () => (auth.token() ? runSync() : startSignIn({ silent: !auth.needsTap() })));
     q("[data-auto]")?.addEventListener("change", (e) => { try { localStorage.setItem("fd_auto_renew", e.target.checked ? "1" : "0"); } catch { /* ignore */ } });
     q("[data-import]").addEventListener("change", (e) => importBackupFile(e.target.files[0], rerender));
+    q("[data-currency]").addEventListener("change", async (e) => {
+        await store.save("prefs", { id: CURRENCY_PREF_ID, code: e.target.value });
+        rerender();
+        toast(`Amounts now shown in ${e.target.value}`);
+    });
     el.querySelectorAll("[data-starter]").forEach((b) => b.addEventListener("click", async () => {
         await store.mergeIn(buildStarter(newId));
         toast("Starter categories added.");

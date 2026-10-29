@@ -60,13 +60,15 @@ Your data stays on your device and, if you choose, in a private folder in **your
 
 Finance is a web app you add to your home screen. It then opens full-screen like any other app. There's no app store and nothing to download.
 
+👉 **[Step-by-step guide with pictures](https://rispace.github.io/my-finance/about.html#install)**: iPhone (including iOS 26's new Safari), Android and computers.
+
 <table>
 <tr><th>📱 iPhone / iPad</th><th>🤖 Android</th></tr>
 <tr><td>
 
 1. Open **[rispace.github.io/my-finance](https://rispace.github.io/my-finance/)** in **Safari**
-2. Tap **Share** <img src="https://img.shields.io/badge/-%E2%86%91-lightgrey" height="14">
-3. Tap **Add to Home Screen → Add**
+2. Tap **⋯** next to the address bar, then **Share** (older iOS: tap **Share** <img src="https://img.shields.io/badge/-%E2%86%91-lightgrey" height="14"> directly)
+3. Tap **Add to Home Screen**, keep *Open as Web App* on, tap **Add**
 4. Open **Finance** from your home screen
 
 </td><td>

@@ -7,7 +7,8 @@ import * as auth from "./auth.js";
 import * as drive from "./drive.js";
 import { syncNow } from "./sync.js";
 import { initSheet, closeSheet, openSheet, toast } from "./ui.js";
-import { timeAgo } from "./util.js";
+import { timeAgo, setCurrency } from "./util.js";
+import { CURRENCY_PREF_ID } from "./calc.js";
 import * as quotes from "./quotes.js";
 
 import { overviewView } from "./views/overview.js";
@@ -18,7 +19,7 @@ import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEdit
 import { assetsView, assetFormView, assetValueView, stockFormView, cashFormView } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.1.1";
+export const APP_VERSION = "1.2.0";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes
@@ -89,6 +90,7 @@ const $view = document.getElementById("view");
 /** Show the screen for the current address. keepScroll: re-render in place. */
 export function render({ keepScroll = false } = {}) {
     route = currentRoute();
+    setCurrency(store.get("prefs", CURRENCY_PREF_ID)?.code);
     document.querySelectorAll("[data-nav]").forEach((el) => el.classList.toggle("active", el.dataset.nav === route.nav));
     const y = window.scrollY;
     try {

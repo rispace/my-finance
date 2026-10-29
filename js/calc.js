@@ -446,6 +446,7 @@ export function allocateLoanPayment(loan, payments, input, todayDay) {
 export const quoteId = (symbol) => `q-${symbol}`;
 export const INVESTMENT_CASH_ID = "investment-cash";
 export const FINNHUB_PREF_ID = "finnhub";
+export const CURRENCY_PREF_ID = "currency";
 
 export function isStale(quote, now = Date.now()) {
     return !quote || quote.price == null || !quote.checkedAt || now - quote.checkedAt > QUOTE_MAX_AGE_MS;

@@ -13,14 +13,41 @@ export function esc(value) {
 
 // ----------------------------------------------------------------- money
 
+// Which currency amounts are shown in (Settings → Currency). Only the display
+// changes; stored amounts are plain numbers. The locale sets digit grouping,
+// e.g. en-IN gives lakh/crore style (4,50,000) for taka and rupees.
+export const CURRENCIES = [
+    { code: "USD", name: "US dollar", locale: "en-US" },
+    { code: "BDT", name: "Bangladeshi taka", locale: "en-IN" },
+    { code: "INR", name: "Indian rupee", locale: "en-IN" },
+    { code: "PKR", name: "Pakistani rupee", locale: "en-PK" },
+    { code: "NPR", name: "Nepalese rupee", locale: "en-IN" },
+    { code: "LKR", name: "Sri Lankan rupee", locale: "en-LK" },
+    { code: "EUR", name: "Euro", locale: "en-IE" },
+    { code: "GBP", name: "British pound", locale: "en-GB" },
+    { code: "CAD", name: "Canadian dollar", locale: "en-CA" },
+    { code: "AUD", name: "Australian dollar", locale: "en-AU" },
+    { code: "SAR", name: "Saudi riyal", locale: "en-US" },
+    { code: "AED", name: "UAE dirham", locale: "en-US" },
+    { code: "MYR", name: "Malaysian ringgit", locale: "en-MY" },
+    { code: "SGD", name: "Singapore dollar", locale: "en-SG" },
+];
+let activeCurrency = CURRENCIES[0];
+export function setCurrency(code) {
+    activeCurrency = CURRENCIES.find((c) => c.code === code) || CURRENCIES[0];
+}
+export const currencyCode = () => activeCurrency.code;
+
 const formatters = new Map();
 function currency(places) {
-    if (!formatters.has(places)) {
-        formatters.set(places, new Intl.NumberFormat("en-US", {
-            style: "currency", currency: "USD", minimumFractionDigits: places, maximumFractionDigits: places,
+    const key = `${activeCurrency.code}|${places}`;
+    if (!formatters.has(key)) {
+        formatters.set(key, new Intl.NumberFormat(activeCurrency.locale, {
+            style: "currency", currency: activeCurrency.code, currencyDisplay: "narrowSymbol",
+            minimumFractionDigits: places, maximumFractionDigits: places,
         }));
     }
-    return formatters.get(places);
+    return formatters.get(key);
 }
 
 /** 123456 -> "$1,234.56"; null -> "—" (same as the web app's |money filter). */
@@ -61,7 +88,7 @@ export function cssPct(value) {
  * Returns null when it isn't a number. Extra decimals are cut, not rounded.
  */
 export function toCents(value) {
-    const text = String(value ?? "").replace(/[$,\s]/g, "");
+    const text = String(value ?? "").replace(/[$৳₹€£,\s]/g, "").replace(/^([-+]?)(?:Rs\.?|Tk\.?|RM|SAR|AED)/i, "$1");
     const match = /^([-+])?(\d*)(?:\.(\d*))?$/.exec(text);
     if (!match || (match[2] === "" && !match[3])) return null;
     const cents = Number(match[2] || 0) * 100 + Number((match[3] || "").slice(0, 2).padEnd(2, "0"));
@@ -78,7 +105,7 @@ export function centsToInput(cents) {
 
 /** Parse a decimal like "0.3171770000" -> number, or null. */
 export function toDecimal(value) {
-    const text = String(value ?? "").replace(/[$,\s]/g, "");
+    const text = String(value ?? "").replace(/[$৳₹€£,\s]/g, "").replace(/^([-+]?)(?:Rs\.?|Tk\.?|RM|SAR|AED)/i, "$1");
     if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(text)) return null;
     const n = Number(text);
     return Number.isFinite(n) ? n : null;

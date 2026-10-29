@@ -44,43 +44,286 @@
     <section id="install" class="site-section">
         <h2>Install it (about 30 seconds)</h2>
         <p class="muted">Finance is a web app you add to your home screen. It then opens full-screen like any other app and works offline. Nothing to download from an app store.</p>
-        <div class="grid grid-2">
-            <div class="card">
-                <h3>iPhone &amp; iPad</h3>
-                <ol class="site-steps">
-                    <li>Open <a href="./">rispace.github.io/my-finance</a> in <strong>Safari</strong>.</li>
-                    <li>Tap the <strong>Share</strong> button (square with an arrow).</li>
-                    <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-                    <li>Open Finance from your home screen.</li>
-                </ol>
+
+        <div class="notice install-first">
+            <strong>First, open the link in your phone’s real browser.</strong>
+            If you tapped the link inside Facebook, Messenger or another app, it opened in that app’s built-in browser, which can’t install apps.
+            Tap <strong>⋯</strong> (or ⋮) in that window and choose <strong>Open in Safari</strong> / <strong>Open in browser</strong>, or copy
+            <code>rispace.github.io/my-finance</code> into Safari (iPhone) or Chrome (Android).
+        </div>
+
+        <div class="install-tabs" role="tablist" aria-label="Choose your device">
+            <button type="button" role="tab" id="tab-ios" aria-controls="panel-ios" aria-selected="true">iPhone &amp; iPad</button>
+            <button type="button" role="tab" id="tab-android" aria-controls="panel-android" aria-selected="false">Android</button>
+            <button type="button" role="tab" id="tab-desktop" aria-controls="panel-desktop" aria-selected="false">Computer</button>
+        </div>
+
+        <div class="install-panel card" id="panel-ios" role="tabpanel" aria-labelledby="tab-ios">
+            <h3>iPhone &amp; iPad · Safari</h3>
+            <div class="install-steps">
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="Safari with the More button, three dots, highlighted at the bottom right">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-glass" x="16" y="344" width="34" height="34" rx="17"/>
+<path class="mk-stroke" d="M36 354l-7 7 7 7"/>
+<rect class="mk-glass" x="56" y="344" width="88" height="34" rx="17"/>
+<text class="mk-url" x="100" y="365" text-anchor="middle">rispace.github.io</text>
+<rect class="mk-glass" x="150" y="344" width="34" height="34" rx="17"/><g class="mk-dots"><circle cx="161" cy="361" r="2"/><circle cx="167" cy="361" r="2"/><circle cx="173" cy="361" r="2"/></g><rect class="mk-hl" x="146" y="340" width="42" height="42" rx="21"/><circle class="mk-tap" cx="172" cy="368" r="9"/></svg>
+    <figcaption><span class="install-num">1</span><span><strong>Tap ⋯</strong> at the bottom right, next to the address bar.</span></figcaption>
+</figure>
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="The Safari menu with Share highlighted">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-dim" x="9" y="9" width="182" height="382" rx="24"/><rect class="mk-sheet" x="70" y="196" width="116" height="138" rx="14"/>
+<text class="mk-row" x="82" y="217">Share</text>
+<g class="mk-icon" transform="translate(168 213) scale(0.8)"><path d="M-6 -1v9h12v-9M0 -9v11M-4 -5l4-4 4 4" /></g>
+<rect class="mk-hl" x="73" y="201" width="110" height="24" rx="9"/>
+<line class="mk-sep" x1="80" y1="226" x2="176" y2="226"/>
+<text class="mk-row" x="82" y="243">Add to Bookmarks</text>
+<line class="mk-sep" x1="80" y1="252" x2="176" y2="252"/>
+<text class="mk-row" x="82" y="269">Add to Favorites</text>
+<line class="mk-sep" x1="80" y1="278" x2="176" y2="278"/>
+<text class="mk-row" x="82" y="295">Find on Page</text>
+<line class="mk-sep" x1="80" y1="304" x2="176" y2="304"/>
+<text class="mk-row" x="82" y="321">New Tab</text><rect class="mk-glass" x="16" y="344" width="34" height="34" rx="17"/>
+<path class="mk-stroke" d="M36 354l-7 7 7 7"/>
+<rect class="mk-glass" x="56" y="344" width="88" height="34" rx="17"/>
+<text class="mk-url" x="100" y="365" text-anchor="middle">rispace.github.io</text>
+<rect class="mk-glass" x="150" y="344" width="34" height="34" rx="17"/><g class="mk-dots"><circle cx="161" cy="361" r="2"/><circle cx="167" cy="361" r="2"/><circle cx="173" cy="361" r="2"/></g><circle class="mk-tap" cx="170" cy="222" r="9"/></svg>
+    <figcaption><span class="install-num">2</span><span><strong>Tap Share.</strong> </span></figcaption>
+</figure>
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="The share sheet with Add to Home Screen highlighted">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-dim" x="9" y="9" width="182" height="382" rx="24"/><rect class="mk-sheet" x="9" y="120" width="182" height="271" rx="22"/>
+<rect class="mk-accent" x="22" y="134" width="24" height="24" rx="7"/>
+<text class="mk-row-b" x="54" y="145">Finance</text><text class="mk-sub" x="54" y="157">rispace.github.io</text>
+<line class="mk-sep" x1="20" y1="168" x2="180" y2="168"/>
+<circle class="mk-soft-c" cx="38" cy="190" r="14"/><circle class="mk-soft-c" cx="78" cy="190" r="14"/><circle class="mk-soft-c" cx="118" cy="190" r="14"/><circle class="mk-soft-c" cx="158" cy="190" r="14"/>
+<rect class="mk-sheet" x="18" y="216" width="164" height="148" rx="14"/>
+<text class="mk-row" x="30" y="237">Copy</text>
+<line class="mk-sep" x1="28" y1="248" x2="172" y2="248"/>
+<text class="mk-row" x="30" y="265">Add to Reading List</text>
+<line class="mk-sep" x1="28" y1="276" x2="172" y2="276"/>
+<text class="mk-row" x="30" y="293">Add Bookmark</text>
+<line class="mk-sep" x1="28" y1="304" x2="172" y2="304"/>
+<text class="mk-row" x="30" y="321">Add to Home Screen</text>
+<g class="mk-icon" transform="translate(164 317)"><rect x="-7" y="-7" width="14" height="14" rx="3"/><path d="M0 -3.5v7M-3.5 0h7"/></g>
+<rect class="mk-hl" x="21" y="305" width="158" height="26" rx="9"/>
+<line class="mk-sep" x1="28" y1="332" x2="172" y2="332"/>
+<text class="mk-row" x="30" y="349">Find on Page</text><circle class="mk-tap" cx="150" cy="318" r="9"/></svg>
+    <figcaption><span class="install-num">3</span><span><strong>Tap Add to Home Screen.</strong> Scroll down or tap <em>View More</em> if you don’t see it.</span></figcaption>
+</figure>
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="The Add to Home Screen screen: name Finance, Open as Web App on, Add highlighted">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<rect class="mk-sheet" x="9" y="30" width="182" height="361" rx="22"/>
+<text class="mk-link" x="20" y="58" style="font-size:8.5px">Cancel</text>
+<text class="mk-row-b" x="104" y="58" text-anchor="middle" style="font-size:8px">Add to Home Screen</text>
+<text class="mk-link-b" x="178" y="58" text-anchor="end">Add</text><rect class="mk-hl" x="152" y="44" width="34" height="20" rx="8"/><circle class="mk-tap" cx="170" cy="54" r="9"/>
+<rect class="mk-card" x="20" y="78" width="160" height="70" rx="12"/>
+<rect class="mk-accent" x="30" y="90" width="44" height="44" rx="11"/>
+<path class="mk-on-accent" d="M58 104v-3a2 2 0 0 0-2.3-2l-12 1.8A2.5 2.5 0 0 0 41.7 103v19a2.5 2.5 0 0 0 2.5 2.5h17.6a2.5 2.5 0 0 0 2.5-2.5v-15.5a2.5 2.5 0 0 0-2.5-2.5H42"/>
+<text class="mk-row-b" x="84" y="108">Finance</text>
+<line class="mk-sep" x1="84" y1="115" x2="172" y2="115"/>
+<text class="mk-sub" x="84" y="128">rispace.github.io</text>
+<rect class="mk-card" x="20" y="160" width="160" height="36" rx="12"/>
+<text class="mk-row" x="32" y="182">Open as Web App</text>
+<rect class="mk-accent" x="142" y="170" width="28" height="16" rx="8"/><circle class="mk-knob" cx="162" cy="178" r="6"/>
+<text class="mk-sub" x="22" y="214">Keep this on so Finance opens</text><text class="mk-sub" x="22" y="226">full-screen, like an app.</text></svg>
+    <figcaption><span class="install-num">4</span><span><strong>Tap Add.</strong> Keep <em>Open as Web App</em> on.</span></figcaption>
+</figure>
             </div>
-            <div class="card">
-                <h3>Android</h3>
-                <ol class="site-steps">
-                    <li>Open <a href="./">rispace.github.io/my-finance</a> in <strong>Chrome</strong>.</li>
-                    <li>Tap <strong>Install app</strong> when offered, or menu <strong>⋮ → Add to Home screen</strong>.</li>
-                    <li>Open Finance from your home screen.</li>
-                </ol>
-            </div>
-            <div class="card">
-                <h3>Mac</h3>
-                <ol class="site-steps">
-                    <li><strong>Safari:</strong> open the app, then <strong>File → Add to Dock</strong>.</li>
-                    <li><strong>Chrome or Edge:</strong> click the install icon at the right end of the address bar.</li>
-                </ol>
-            </div>
-            <div class="card">
-                <h3>Windows &amp; Linux</h3>
-                <ol class="site-steps">
-                    <li>Open the app in <strong>Chrome or Edge</strong>.</li>
-                    <li>Click the install icon in the address bar (or menu → <strong>Install Finance</strong>).</li>
-                </ol>
+            <div class="install-tips">
+                <div><strong>Don’t see ⋯ or the address bar?</strong> Scroll up a little or tap the very bottom of the screen; Safari hides its toolbar while you scroll.
+                    If the page looks like a plain article with big text, <strong>Reader</strong> is on: tap the Reader icon in the address bar (or <strong>⋯ → Hide Reader</strong>) to turn it off first.</div>
+                <div><strong>See a Share button (a square with an arrow ↑) in the toolbar instead?</strong> That’s an older iOS version or the “Bottom”/“Top” tab layout: tap it and continue from step 3.</div>
+                <div><strong>Using Chrome on iPhone?</strong> Tap the Share button in Chrome’s address bar, then <strong>Add to Home Screen</strong>. Or use Safari, as above.</div>
             </div>
         </div>
+
+        <div class="install-panel card" id="panel-android" role="tabpanel" aria-labelledby="tab-android">
+            <h3>Android · Chrome</h3>
+            <div class="install-steps">
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="Chrome with the menu button, three vertical dots, highlighted at the top right">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page" transform="translate(0 22)">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-chrome" x="9" y="9" width="182" height="44" rx="24"/><rect class="mk-chrome" x="9" y="30" width="182" height="23"/>
+<rect class="mk-glass" x="18" y="20" width="128" height="26" rx="13"/>
+<text class="mk-url" x="30" y="37">rispace.github.io/my-finance</text>
+<rect class="mk-tabs" x="152" y="25" width="15" height="15" rx="3.5"/><text class="mk-tabs-t" x="159.5" y="36" text-anchor="middle">1</text><g class="mk-dots"><circle cx="180" cy="27" r="2"/><circle cx="180" cy="33" r="2"/><circle cx="180" cy="39" r="2"/></g><rect class="mk-hl" x="170" y="18" width="20" height="30" rx="10"/><circle class="mk-tap" cx="184" cy="42" r="9"/></svg>
+    <figcaption><span class="install-num">1</span><span><strong>Tap ⋮</strong> at the top right.</span></figcaption>
+</figure>
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="The Chrome menu with Add to home screen highlighted">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page" transform="translate(0 22)">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-dim" x="9" y="9" width="182" height="382" rx="24"/><rect class="mk-chrome" x="9" y="9" width="182" height="44" rx="24"/><rect class="mk-chrome" x="9" y="30" width="182" height="23"/>
+<rect class="mk-glass" x="18" y="20" width="128" height="26" rx="13"/>
+<text class="mk-url" x="30" y="37">rispace.github.io/my-finance</text>
+<rect class="mk-tabs" x="152" y="25" width="15" height="15" rx="3.5"/><text class="mk-tabs-t" x="159.5" y="36" text-anchor="middle">1</text><g class="mk-dots"><circle cx="180" cy="27" r="2"/><circle cx="180" cy="33" r="2"/><circle cx="180" cy="39" r="2"/></g><rect class="mk-sheet" x="64" y="50" width="122" height="164" rx="14"/>
+<text class="mk-row" x="76" y="71">New tab</text>
+<line class="mk-sep" x1="74" y1="80" x2="176" y2="80"/>
+<text class="mk-row" x="76" y="97">New Incognito tab</text>
+<line class="mk-sep" x1="74" y1="106" x2="176" y2="106"/>
+<text class="mk-row" x="76" y="123">History</text>
+<line class="mk-sep" x1="74" y1="132" x2="176" y2="132"/>
+<text class="mk-row" x="76" y="149">Downloads</text>
+<line class="mk-sep" x1="74" y1="158" x2="176" y2="158"/>
+<text class="mk-row" x="76" y="175">Add to home screen</text>
+<rect class="mk-hl" x="67" y="159" width="116" height="24" rx="9"/>
+<line class="mk-sep" x1="74" y1="184" x2="176" y2="184"/>
+<text class="mk-row" x="76" y="201">Settings</text><circle class="mk-tap" cx="160" cy="172" r="9"/></svg>
+    <figcaption><span class="install-num">2</span><span><strong>Tap Add to home screen</strong> (on some phones: <em>Install app</em>).</span></figcaption>
+</figure>
+<figure class="install-step">
+    <svg class="mk" viewBox="0 0 200 400" role="img" aria-label="The Install app dialog with Install highlighted">
+<rect class="mk-frame" x="2" y="2" width="196" height="396" rx="30"/>
+<rect class="mk-screen" x="9" y="9" width="182" height="382" rx="24"/>
+<g class="mk-page" transform="translate(0 22)">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g><rect class="mk-dim" x="9" y="9" width="182" height="382" rx="24"/><rect class="mk-chrome" x="9" y="9" width="182" height="44" rx="24"/><rect class="mk-chrome" x="9" y="30" width="182" height="23"/>
+<rect class="mk-glass" x="18" y="20" width="128" height="26" rx="13"/>
+<text class="mk-url" x="30" y="37">rispace.github.io/my-finance</text>
+<rect class="mk-tabs" x="152" y="25" width="15" height="15" rx="3.5"/><text class="mk-tabs-t" x="159.5" y="36" text-anchor="middle">1</text><g class="mk-dots"><circle cx="180" cy="27" r="2"/><circle cx="180" cy="33" r="2"/><circle cx="180" cy="39" r="2"/></g><rect class="mk-sheet" x="22" y="140" width="156" height="118" rx="18"/>
+<text class="mk-row-b" x="36" y="164">Install app</text>
+<rect class="mk-accent" x="36" y="178" width="28" height="28" rx="8"/>
+<text class="mk-row" x="72" y="190">Finance</text><text class="mk-sub" x="72" y="202">rispace.github.io</text>
+<text class="mk-link" x="96" y="241" text-anchor="middle">Cancel</text>
+<rect class="mk-accent" x="124" y="226" width="44" height="22" rx="11"/><text class="mk-btn-t" x="146" y="241" text-anchor="middle">Install</text><rect class="mk-hl" x="120" y="222" width="52" height="30" rx="14"/><circle class="mk-tap" cx="156" cy="244" r="9"/></svg>
+    <figcaption><span class="install-num">3</span><span><strong>Tap Install.</strong> Finance appears on your home screen.</span></figcaption>
+</figure>
+            </div>
+            <div class="install-tips">
+                <div><strong>Chrome may offer it by itself:</strong> if you see an <strong>Install app</strong> banner at the bottom, just tap it.</div>
+                <div><strong>Samsung Internet:</strong> tap the menu <strong>≡</strong> → <strong>Add page to</strong> → <strong>Home screen</strong>.</div>
+            </div>
+        </div>
+
+        <div class="install-panel card" id="panel-desktop" role="tabpanel" aria-labelledby="tab-desktop">
+            <h3>Mac, Windows &amp; Linux</h3>
+            <figure class="install-step install-step-wide">
+                <svg class="mk mk-wide" viewBox="0 0 420 250" role="img" aria-label="A desktop browser with the install icon highlighted at the right end of the address bar, and the Install button in the pop-up">
+<rect class="mk-frame" x="2" y="2" width="416" height="246" rx="12"/>
+<rect class="mk-chrome" x="3" y="3" width="414" height="54" rx="11"/>
+<circle class="mk-dot-r" cx="18" cy="16" r="4"/><circle class="mk-dot-y" cx="31" cy="16" r="4"/><circle class="mk-dot-g" cx="44" cy="16" r="4"/>
+<rect class="mk-screen-tab" x="60" y="8" width="110" height="18" rx="6"/><text class="mk-sub" x="72" y="21">Finance</text>
+<rect class="mk-glass" x="54" y="31" width="320" height="20" rx="10"/>
+<text class="mk-url" x="68" y="45">rispace.github.io/my-finance/</text>
+<g class="mk-icon" transform="translate(356 41)"><rect x="-7" y="-6" width="14" height="10" rx="2"/><path d="M-3 7h6M0 -3.5v5M-2.5 -1l2.5 2.5 2.5-2.5"/></g>
+<rect class="mk-hl" x="344" y="29" width="24" height="24" rx="12"/><circle class="mk-badge" cx="332" cy="20" r="11"/><text class="mk-badge-t" x="332" y="24" text-anchor="middle">1</text>
+<rect class="mk-screen" x="3" y="57" width="414" height="190"/>
+<clipPath id="mk-desk-clip"><rect x="3" y="57" width="414" height="188" rx="10"/></clipPath>
+<g clip-path="url(#mk-desk-clip)"><g transform="translate(40 10) scale(.9)"><g class="mk-page" transform="translate(0 30)">
+<rect class="mk-accent" x="22" y="40" width="20" height="20" rx="6"/>
+<rect class="mk-ink" x="48" y="46" width="52" height="8" rx="4"/>
+<rect class="mk-ink" x="22" y="78" width="96" height="13" rx="5"/>
+<rect class="mk-soft" x="22" y="98" width="130" height="7" rx="3.5"/>
+<rect class="mk-card" x="20" y="118" width="160" height="78" rx="12"/>
+<rect class="mk-soft" x="32" y="132" width="60" height="7" rx="3.5"/>
+<rect class="mk-ink" x="32" y="146" width="90" height="14" rx="5"/>
+<rect class="mk-track" x="32" y="172" width="136" height="8" rx="4"/><rect class="mk-accent" x="32" y="172" width="84" height="8" rx="4"/>
+<rect class="mk-card" x="20" y="206" width="160" height="96" rx="12"/>
+<circle class="mk-accent" cx="58" cy="254" r="26"/><circle class="mk-card-fill" cx="58" cy="254" r="14"/>
+<rect class="mk-soft" x="98" y="234" width="64" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="250" width="50" height="7" rx="3.5"/><rect class="mk-soft" x="98" y="266" width="58" height="7" rx="3.5"/>
+</g></g></g>
+<rect class="mk-sheet mk-pop" x="216" y="60" width="190" height="96" rx="12"/>
+<text class="mk-row-b" x="230" y="82">Install app?</text>
+<rect class="mk-accent" x="230" y="92" width="24" height="24" rx="7"/>
+<text class="mk-row" x="262" y="103">Finance</text><text class="mk-sub" x="262" y="114">rispace.github.io</text>
+<rect class="mk-accent" x="300" y="126" width="48" height="20" rx="10"/><text class="mk-btn-t" x="324" y="140" text-anchor="middle">Install</text>
+<text class="mk-link" x="378" y="140" text-anchor="middle">Cancel</text>
+<rect class="mk-hl" x="296" y="122" width="56" height="28" rx="14"/><circle class="mk-badge" cx="288" cy="128" r="11"/><text class="mk-badge-t" x="288" y="132" text-anchor="middle">2</text>
+</svg>
+                <figcaption><span class="install-num">1</span><span><strong>Chrome or Edge:</strong> click the install icon at the right end of the address bar (or menu ⋮ → <em>Cast, save and share</em> → <em>Install page as app</em>; in Edge, ⋯ → <em>Apps</em> → <em>Install this site as an app</em>).</span></figcaption>
+                <figcaption><span class="install-num">2</span><span>Click <strong>Install</strong>. Finance opens in its own window and gets a Dock / Start menu icon.</span></figcaption>
+            </figure>
+            <div class="install-tips">
+                <div><strong>Safari on Mac:</strong> open the app, then choose <strong>File → Add to Dock</strong> and click <strong>Add</strong>.</div>
+                <div><strong>Firefox:</strong> can’t install web apps, but Finance works fine in a normal tab; bookmark it.</div>
+            </div>
+        </div>
+
         <div class="card" style="margin-top:16px">
             <h3>Then, inside the app</h3>
             <ol class="site-steps">
                 <li>Tap <strong>Start with starter categories</strong> (you can rename them any time).</li>
+                <li>Optional: <strong>Settings → Currency</strong> to show amounts in taka, rupees, euros and more.</li>
                 <li>Optional: <strong>Settings → Sign in with Google</strong> on each device to keep them in sync.</li>
                 <li>Optional: add a free <a href="https://finnhub.io/register" target="_blank" rel="noopener">Finnhub</a> key in <strong>Settings → Stock prices</strong> for live stock prices.</li>
             </ol>
@@ -109,5 +352,33 @@
     <div>© 2026 Mohammad Rafiqul Islam · <a href="https://github.com/rispace/my-finance/blob/main/LICENSE">MIT License</a></div>
     <div class="site-links"><a href="./">Open app</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="https://github.com/rispace/my-finance">Source code</a><a href="https://github.com/rispace/my-finance/issues">Contact &amp; support</a></div>
 </footer>
+<script>
+// Install guide tabs: open the visitor's own device first. Without
+// JavaScript every panel simply shows, one after another.
+(function () {
+    var tabs = [].slice.call(document.querySelectorAll(".install-tabs [role=tab]"));
+    if (!tabs.length) return;
+    function show(id) {
+        tabs.forEach(function (t) {
+            var on = t.id === id;
+            t.setAttribute("aria-selected", on ? "true" : "false");
+            t.tabIndex = on ? 0 : -1;
+            document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+        });
+    }
+    var ua = navigator.userAgent;
+    var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    show(ios ? "tab-ios" : /Android/.test(ua) ? "tab-android" : "tab-desktop");
+    document.documentElement.classList.add("install-js");
+    tabs.forEach(function (t, i) {
+        t.addEventListener("click", function () { show(t.id); });
+        t.addEventListener("keydown", function (e) {
+            var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+            if (!d) return;
+            var n = tabs[(i + d + tabs.length) % tabs.length]; show(n.id); n.focus();
+        });
+    });
+})();
+</script>
 </body>
 </html>

@@ -756,3 +756,62 @@ button.link:hover { background: none; text-decoration: underline; }
 .quick-add .row { color: inherit; text-decoration: none; }
 .quick-add .row:hover { background: var(--surface-2); }
 .quick-icon { background: var(--accent-soft); color: var(--accent); border-radius: 12px; width: 40px; height: 40px; }
+
+/* ---------- Install guide (about.html#install): tabs + illustrated steps */
+:root { --hl: #e8590c; }
+@media (prefers-color-scheme: dark) { :root { --hl: #ff8f4d; } }
+.install-first { margin: 4px 0 18px; line-height: 1.55; }
+.install-first code { font-size: 13px; background: var(--surface); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+.install-tabs { display: none; }
+.install-js .install-tabs { display: flex; gap: 6px; padding: 4px; margin-bottom: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; width: fit-content; max-width: 100%; }
+.install-tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 650; font-size: 14px; padding: 9px 16px; border-radius: 10px; cursor: pointer; min-height: 40px; }
+.install-tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.install-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.install-panel + .install-panel { margin-top: 16px; }
+.install-js .install-panel + .install-panel { margin-top: 0; }
+.install-panel > h3 { margin-bottom: 14px; }
+.install-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+#panel-android .install-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 760px; }
+@media (max-width: 760px) { .install-steps, #panel-android .install-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } }
+.install-step { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.install-step figcaption { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; line-height: 1.45; }
+.install-num { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--hl); color: #fff; font-weight: 700; font-size: 13px; }
+.install-step-wide { max-width: 640px; }
+.install-tips { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; line-height: 1.55; color: var(--muted); }
+.install-tips strong { color: var(--text); }
+
+/* Mockup drawings */
+.mk { display: block; width: 100%; max-width: 210px; height: auto; margin: 0 auto; font-family: var(--font); }
+.mk-wide { max-width: 640px; }
+.mk-frame { fill: var(--text); opacity: .88; }
+.mk-screen, .mk-screen-tab { fill: var(--bg); }
+.mk-card { fill: var(--surface); stroke: var(--border); }
+.mk-card-fill { fill: var(--surface); }
+.mk-sheet { fill: var(--surface); stroke: var(--border); }
+.mk-pop { filter: drop-shadow(0 6px 14px rgb(0 0 0 / 18%)); }
+.mk-glass, .mk-chrome { fill: var(--surface-2); stroke: var(--border); }
+.mk-chrome { stroke: none; }
+.mk-accent { fill: var(--accent); }
+.mk-on-accent { fill: none; stroke: var(--on-accent); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.mk-ink { fill: var(--text); opacity: .75; }
+.mk-soft, .mk-soft-c { fill: var(--track); }
+.mk-track { fill: var(--track); }
+.mk-dim { fill: #000; opacity: .28; }
+.mk-sep { stroke: var(--border); }
+.mk-stroke, .mk-icon { fill: none; stroke: var(--text); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mk-dots circle { fill: var(--text); }
+.mk-url { font-size: 8.5px; fill: var(--muted); }
+.mk-row { font-size: 9.5px; fill: var(--text); }
+.mk-row-b { font-size: 10.5px; font-weight: 700; fill: var(--text); }
+.mk-sub { font-size: 8px; fill: var(--muted); }
+.mk-link { font-size: 10px; fill: var(--accent); }
+.mk-link-b { font-size: 10.5px; font-weight: 700; fill: var(--accent); }
+.mk-btn-t { font-size: 9.5px; font-weight: 700; fill: var(--on-accent); }
+.mk-knob { fill: #fff; }
+.mk-tabs { fill: none; stroke: var(--text); stroke-width: 1.5; }
+.mk-tabs-t { font-size: 8px; font-weight: 700; fill: var(--text); }
+.mk-hl { fill: none; stroke: var(--hl); stroke-width: 3; }
+.mk-tap { fill: var(--hl); opacity: .35; stroke: var(--hl); stroke-width: 1.5; }
+.mk-badge { fill: var(--hl); }
+.mk-badge-t { font-size: 12px; font-weight: 700; fill: #fff; }
+.mk-dot-r { fill: #ec6a5e; } .mk-dot-y { fill: #f4bf4f; } .mk-dot-g { fill: #61c554; }
