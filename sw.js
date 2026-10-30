@@ -2,7 +2,7 @@
 // it opens instantly, even with no signal) and refreshed in the background.
 // Google requests always go to the network.
 
-const CACHE = "finance-drive-v12"; // bump on every release
+const CACHE = "finance-drive-v13"; // bump on every release
 const SHELL = [
     "./",
     "index.html",

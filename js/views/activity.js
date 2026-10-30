@@ -44,6 +44,16 @@ export function activityView({ el, rerender }) {
     const colors = categoryColors(data.categories);
     const name = lookups();
     const dateSorted = filters.sort === "date_desc" || filters.sort === "date_asc";
+    // "Food · Oct 1 – Oct 31, 2026" for the total bar.
+    const range = filters.from && filters.to ? `${fmtDay(filters.from)} – ${fmtDay(filters.to)}`
+        : filters.from ? `since ${fmtDay(filters.from)}` : filters.to ? `until ${fmtDay(filters.to)}` : "";
+    const filterSummary = [
+        filters.category && name.category(filters.category),
+        filters.subcategory && name.subcategory(filters.subcategory),
+        filters.account && name.account(filters.account),
+        filters.q && `“${filters.q}”`,
+        range,
+    ].filter(Boolean).join(" · ");
 
     el.innerHTML = `
     <div class="page-head">
@@ -78,6 +88,15 @@ export function activityView({ el, rerender }) {
             </div>
         </form>
     </section>
+
+    ${activeCount() && matching.length ? `
+    <section class="card filter-total">
+        <div>
+            <div class="stat-label">Total${filterSummary ? ` · ${esc(filterSummary)}` : ""}</div>
+            <div class="stat-value">${money(total)}</div>
+        </div>
+        <div class="muted small" style="text-align:right">${plural(matching.length, "transaction")}${matching.length > 1 ? `<br>avg ${money(Math.round(total / matching.length))}` : ""}</div>
+    </section>` : ""}
 
     <section class="card">
         ${groups.map((g) => `

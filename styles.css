@@ -877,3 +877,5 @@ button.link:hover { background: none; text-decoration: underline; }
   .budget-row .budget-paid { grid-column: 2 / 3; grid-row: 2; }
   .budget-head .budget-paid { display: none; }
 }
+.filter-total { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; background: var(--accent-soft); border-color: transparent; }
+.filter-total .stat-value { color: var(--accent-strong); }
