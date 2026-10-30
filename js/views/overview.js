@@ -12,7 +12,7 @@ import * as quotes from "../quotes.js";
 
 const pill = (level) => (level === "high" ? "loss" : level === "mid" ? "warn" : "gain");
 
-export function overviewView({ el, query }) {
+export function overviewView({ el, query, rerender }) {
     const day = today();
     const month = isMonth(query.m) ? query.m : monthOf(day);
     const data = store.snapshot();
@@ -23,6 +23,8 @@ export function overviewView({ el, query }) {
     const folio = d.portfolio;
     const firstRun = !data.transactions.length && !data.categories.length && !data.cards.length && !data.earnings.length;
     const flow = earningsSummary(data, month, day);
+    // The budget card can show another month than the rest of the page (‹ › on the card).
+    const budgetMonth = isMonth(query.bm) ? query.bm : month;
 
     el.innerHTML = `
     <div class="page-head">
@@ -121,7 +123,7 @@ export function overviewView({ el, query }) {
                 </div>
             </section>
 
-            ${budgetCard(d, month, monthName)}
+            ${budgetCard(budgetMonth === month ? d : dashboard(data, budgetMonth, day), budgetMonth, month)}
         </div>
 
         <div class="stack">
@@ -237,23 +239,37 @@ export function overviewView({ el, query }) {
         if (row) openCategory(row, month);
     }));
     bindDonuts(el);
+    // Change only the budget card's month, without jumping to the top of the page.
+    el.querySelectorAll("[data-bm]").forEach((b) => b.addEventListener("click", () => {
+        const bm = b.dataset.bm;
+        history.replaceState(null, "", bm === month ? `#/?m=${month}` : `#/?m=${month}&bm=${bm}`);
+        rerender();
+        el.querySelector(`#budget [data-bm]`)?.focus({ preventScroll: true });
+    }));
     if (folio.needsRefresh) refreshQuotesIfStale();
 }
 
-function budgetCard(d, month, monthName) {
+function budgetCard(d, month, pageMonth) {
     const b = d.budget;
+    const monthName = fmtMonthName(month);
     const editHref = `#/budget?m=${month}`;
+    const nav = `<div class="budget-card-nav">
+            <button type="button" class="icon-button" data-bm="${shiftMonth(month, -1)}" aria-label="Previous month's budget"><svg width="18" height="18"><use href="#i-left"/></svg></button>
+            <span>${esc(fmtMonthLong(month))}</span>
+            <button type="button" class="icon-button" data-bm="${shiftMonth(month, 1)}" aria-label="Next month's budget"><svg width="18" height="18"><use href="#i-right"/></svg></button>
+            ${month !== pageMonth ? `<button type="button" class="link small" data-bm="${pageMonth}">Back to ${esc(fmtMonthName(pageMonth))}</button>` : ""}
+        </div>`;
     if (!b) {
         return `
         <section class="card" id="budget">
-            <div class="card-head"><h2>Budget · ${esc(monthName)}</h2><a href="${editHref}">Set budget</a></div>
+            <div class="card-head budget-card-head"><h2>Budget</h2>${nav}<a href="${editHref}">Set budget</a></div>
             <div class="empty"><strong>No budget for ${esc(fmtMonthLong(month))}</strong>Set an overall limit and type the budget lines you care about.
                 <a href="${editHref}">Set budget</a> · <a href="${editHref}&copy=1">copy last budget</a></div>
         </section>`;
     }
     return `
     <section class="card" id="budget">
-        <div class="card-head"><h2>Budget · ${esc(monthName)}</h2><a href="${editHref}">Edit</a></div>
+        <div class="card-head budget-card-head"><h2>Budget</h2>${nav}<a href="${editHref}">Edit</a></div>
         <div class="budget-top">
             <div>
                 <div class="stat-value ${b.level === "high" ? "bad" : ""}">${money(b.spent)}</div>

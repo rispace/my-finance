@@ -833,3 +833,17 @@ button.link:hover { background: none; text-decoration: underline; }
 .mk-badge { fill: var(--hl); }
 .mk-badge-t { font-size: 12px; font-weight: 700; fill: #fff; }
 .mk-dot-r { fill: #ec6a5e; } .mk-dot-y { fill: #f4bf4f; } .mk-dot-g { fill: #61c554; }
+.budget-card-head { flex-wrap: wrap; gap: 6px 10px; }
+.budget-card-head h2 { margin-right: auto; }
+.budget-card-nav { display: flex; align-items: center; gap: 4px; font-weight: 650; font-size: 14px; }
+.budget-card-nav .icon-button { width: 34px; height: 34px; min-height: 34px; }
+.budget-card-nav span { min-width: 118px; text-align: center; }
+.budget-card-nav .link { margin-left: 4px; }
+@media (max-width: 560px) { .budget-card-nav { order: 3; width: 100%; justify-content: center; } }
+.budget-card-nav .icon-button { display: grid; place-items: center; padding: 0; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: none; }
+.budget-card-nav .icon-button:hover { background: var(--surface-2); }
+.budget-card-nav .icon-button svg { width: 18px; height: 18px; }
+.budget-card-nav .link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); font-weight: 650; box-shadow: none; }
+.loan-stats { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px 28px; }
+.loan-stats > div:last-child { text-align: right; }
+@media (max-width: 560px) { .loan-stats > div:last-child { text-align: left; } .loan-stats .stat-value { font-size: 28px !important; } }

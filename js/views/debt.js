@@ -426,6 +426,8 @@ export function loanDetailView({ el, params, rerender }) {
     const payments = store.all("loanPayments");
     const row = loanRow(loan, payments);
     const history = payments.filter((p) => p.loanId === loan.id).sort(byDateDesc);
+    const interestPaid = history.reduce((s, p) => s + (p.interestCents || 0), 0);
+    const totalPaid = history.reduce((s, p) => s + (p.totalCents || 0), 0);
     const id = encodeURIComponent(loan.id);
     el.innerHTML = `
     <div class="page-head">
@@ -441,8 +443,17 @@ export function loanDetailView({ el, params, rerender }) {
     </div>
     <div class="grid grid-main">
         <section class="card">
-            <div class="stat-label">Remaining principal</div>
-            <div class="stat-value" style="font-size:34px">${money(row.balance)}</div>
+            <div class="loan-stats">
+                <div>
+                    <div class="stat-label">Remaining principal</div>
+                    <div class="stat-value" style="font-size:34px">${money(row.balance)}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Interest paid so far</div>
+                    <div class="stat-value" style="font-size:34px">${money(interestPaid)}</div>
+                    <div class="muted small">${history.length ? `${plural(history.length, "payment")} · ${money(totalPaid)} paid in total` : "No payments yet"}</div>
+                </div>
+            </div>
             <div class="bar thick" style="margin:12px 0 6px"><span style="width:${cssPct(row.paidPct)}%"></span></div>
             <p class="muted small">${pct(row.paidPct, 1)} of ${money(loan.financedCents)} paid off. This is the principal you recorded, not a lender payoff quote.</p>
             <dl class="detail-list" style="margin-top:12px">
