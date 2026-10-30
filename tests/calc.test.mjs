@@ -126,3 +126,16 @@ assert.equal(calc.toMilli("9.64"), 9640); assert.equal(calc.toMilli("6.499"), 64
 assert.equal(daysBetween("2026-09-30", "2026-10-31"), 31); assert.equal(daysBetween("2026-03-07", "2026-03-09"), 2);
 assert.equal(toCents("-50"), -5000);
 console.log("calc/import/csv unit tests passed");
+
+// ---- buying more of a stock you already hold
+{
+    const { combinePurchase } = await import("../js/calc.js");
+    const a = combinePurchase(2, 25, 2, 27);
+    assert.deepEqual(a, { shares: 4, averageCost: 26 });
+    const b = combinePurchase(4, 26, 1, 31);
+    assert.deepEqual(b, { shares: 5, averageCost: 27 });
+    const c = combinePurchase(0.5, 100, 0.25, 130);
+    assert.equal(c.shares, 0.75);
+    assert.equal(c.averageCost, 110);
+    console.log("combinePurchase ✓");
+}

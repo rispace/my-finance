@@ -6,7 +6,7 @@ import {
     esc, money, signedMoney, pct, signedPct, cssPct, today, monthOf, isMonth, shiftMonth,
     fmtMonthLong, fmtMonthName, fmtMonthShort, fmtDay, fmtDayNoYear, fmtMonthYearShort, initials, timeAgo, plural, newId,
 } from "../util.js";
-import { donutHtml, bindDonuts, openSheet, toast } from "../ui.js";
+import { donutHtml, bindDonuts, openSheet, closeSheet, toast } from "../ui.js";
 import { navigate, refreshQuotesIfStale } from "../app.js";
 import * as quotes from "../quotes.js";
 
@@ -276,7 +276,7 @@ function budgetCard(d, month, monthName) {
         </p>
         ${b.rows.map((r) => `
         <div class="cat-row">
-            <span class="cat-name"><span class="swatch" style="background:${r.color}"></span><span>${esc(r.name)}</span></span>
+            <span class="cat-name"><span class="swatch" style="background:${r.color}"></span><span>${esc(r.name)}${r.note ? `<span class="budget-line-note">${esc(r.note)}</span>` : ""}</span></span>
             <span class="num"><strong class="${r.level === "high" ? "bad" : ""}">${money(r.spent, 0)}</strong> <span class="faint small">/ ${money(r.budget, 0)}</span></span>
             <div class="bar"><span class="${r.level}" style="width:${cssPct(r.pct)}%"></span></div>
             ${r.matched ? "" : `<span class="faint small" style="grid-column:1/-1">No transactions match “${esc(r.name)}” yet</span>`}
@@ -287,6 +287,12 @@ function budgetCard(d, month, monthName) {
 
 function openCategory(row, month) {
     const c = row.category;
+    // This month's transactions in the category, newest first.
+    const items = store.all("transactions")
+        .filter((t) => t.categoryId === c.id && monthOf(t.date) === month)
+        .sort((x, y) => y.date.localeCompare(x.date) || (y.createdAt || "").localeCompare(x.createdAt || ""));
+    const subName = (id) => store.get("subcategories", id)?.name || "";
+    const accountName = (id) => store.get("accounts", id)?.name || "";
     openSheet(`<span class="swatch" style="background:${row.color}"></span> ${esc(c.name)}`, `
         <p class="muted">${esc(fmtMonthLong(month))} · ${money(row.spent)}</p>
         ${row.spent ? `
@@ -309,13 +315,26 @@ function openCategory(row, month) {
         </div>`).join("")}
         <div class="row" style="margin-top:6px"><strong class="row-main">12-month total</strong><strong class="num">${money(row.historyTotal)}</strong></div>
         <div class="form-actions">
-            <button type="button" class="btn btn-secondary" data-view-tx>View transactions</button>
-        </div>`, (body) => {
+            <button type="button" class="btn btn-secondary" data-view-tx>View All Transactions</button>
+        </div>
+        <h3 style="margin:18px 0 4px">Transactions in ${esc(fmtMonthLong(month))} <span class="faint small">· ${plural(items.length, "item")}</span></h3>
+        ${items.length ? `<div class="sheet-tx-list">${items.map((t) => `
+            <button type="button" class="row" data-open-tx="${esc(t.id)}">
+                <span class="row-main">
+                    <span class="row-title" style="display:block">${esc(t.description)}</span>
+                    <span class="row-sub" style="display:block">${esc(fmtDayNoYear(t.date))}${t.subcategoryId ? ` · ${esc(subName(t.subcategoryId))}` : ""}${t.accountId ? ` · ${esc(accountName(t.accountId))}` : ""}${t.notes ? ` · ${esc(t.notes)}` : ""}</span>
+                </span>
+                <span class="row-end row-amount">${money(t.amountCents)}</span>
+            </button>`).join("")}</div>` : `<p class="muted small">No transactions in this category this month.</p>`}`, (body) => {
         body.querySelector("[data-view-tx]").addEventListener("click", () => {
             import("./activity.js").then(({ setActivityFilters }) => {
                 setActivityFilters({ category: c.id });
                 navigate("/activity");
             });
         });
+        body.querySelectorAll("[data-open-tx]").forEach((b) => b.addEventListener("click", () => {
+            closeSheet();
+            navigate(`/tx/${encodeURIComponent(b.dataset.openTx)}?back=${encodeURIComponent(`/?m=${month}`)}`);
+        }));
     });
 }

@@ -16,10 +16,10 @@ import { activityView, transactionFormView } from "./views/activity.js";
 import { budgetView } from "./views/budget.js";
 import { earningsView, earningFormView, earningsImportView } from "./views/earnings.js";
 import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEditView, loansView, loanDetailView, loanFormView, loanPaymentView } from "./views/debt.js";
-import { assetsView, assetFormView, assetValueView, stockFormView, cashFormView } from "./views/assets.js";
+import { assetsView, assetFormView, assetValueView, stockFormView, stockBuyView, cashFormView } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.2.0";
+export const APP_VERSION = "1.3.0";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes
@@ -51,6 +51,7 @@ const ROUTES = [
     ["asset/:id/value", assetValueView, "assets", true],
     ["stock/new", stockFormView, "assets", true],
     ["stock/:id", stockFormView, "assets", true],
+    ["stock/:id/buy", stockBuyView, "assets", true],
     ["cash", cashFormView, "assets", true],
     ["settings", settingsView, "settings"],
     ["category/new", categoryFormView, "settings", true],

@@ -171,7 +171,9 @@ function lastAccountId(transactions) {
     return last?.accountId || "";
 }
 
-export function transactionFormView({ el, params }) {
+export function transactionFormView({ el, params, query = {} }) {
+    // Opened from another screen (e.g. a category on Overview)? Go back there afterwards.
+    const back = typeof query.back === "string" && query.back.startsWith("/") ? query.back : "/activity";
     const data = store.snapshot();
     const editing = params.id ? store.get("transactions", params.id) : null;
     if (params.id && !editing) {
@@ -237,7 +239,7 @@ export function transactionFormView({ el, params }) {
             <div class="form-actions">
                 ${editing
                     ? `<button type="submit" class="btn" data-then="list">Save changes</button>
-                       <a class="btn btn-ghost" href="#/activity">Cancel</a>`
+                       <a class="btn btn-ghost" href="#${esc(back)}">Cancel</a>`
                     : `<button type="submit" class="btn" data-then="add">Save &amp; add another</button>
                        <button type="submit" class="btn btn-secondary" data-then="list">Save &amp; view list</button>`}
             </div>
@@ -263,7 +265,7 @@ export function transactionFormView({ el, params }) {
         if (!confirmAction(`Delete “${editing.description}” (${money(editing.amountCents)})? This can’t be undone.`)) return;
         await store.remove("transactions", editing.id);
         toast("Transaction deleted.");
-        navigate("/activity");
+        navigate(back);
     });
 
     form.addEventListener("submit", async (event) => {
@@ -292,7 +294,7 @@ export function transactionFormView({ el, params }) {
         await store.save("transactions", record);
         if (editing) {
             toast("Transaction updated.");
-            navigate("/activity");
+            navigate(back);
         } else {
             toast(`Saved ${money(amountCents)} · ${description}.`);
             if (then === "list") navigate("/activity");

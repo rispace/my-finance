@@ -216,6 +216,7 @@ export function budgetSummary(data, month, categoryTotals, monthTotal, todayDay)
         const firstTerm = fold(budgetTerms(line.name)[0] || "");
         return {
             name: line.name,
+            note: line.note || "",
             budget: line.amountCents,
             spent,
             remaining: line.amountCents - spent,
@@ -447,6 +448,21 @@ export const quoteId = (symbol) => `q-${symbol}`;
 export const INVESTMENT_CASH_ID = "investment-cash";
 export const FINNHUB_PREF_ID = "finnhub";
 export const CURRENCY_PREF_ID = "currency";
+
+/**
+ * Combine another purchase into a holding: shares add up and the average
+ * cost becomes the share-weighted average of the old cost and the new price.
+ * 2 @ 25 + 2 @ 27 -> 4 @ 26.
+ */
+export function combinePurchase(shares, averageCost, boughtShares, price) {
+    const total = shares + boughtShares;
+    if (!(total > 0)) return { shares: 0, averageCost: 0 };
+    const round = (x, places) => Math.round(x * 10 ** places) / 10 ** places;
+    return {
+        shares: round(total, 6),
+        averageCost: round((shares * averageCost + boughtShares * price) / total, 6),
+    };
+}
 
 export function isStale(quote, now = Date.now()) {
     return !quote || quote.price == null || !quote.checkedAt || now - quote.checkedAt > QUOTE_MAX_AGE_MS;

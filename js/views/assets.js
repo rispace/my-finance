@@ -4,7 +4,7 @@
 import * as store from "../store.js";
 import {
     assetRows, portfolio, ASSET_KINDS, ASSET_FIELDS_BY_KIND, LOAN_KINDS, label, currentValuation,
-    quoteId, INVESTMENT_CASH_ID,
+    quoteId, INVESTMENT_CASH_ID, combinePurchase,
 } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, num, today, fmtDay, fmtDayNoYear, fmtMonthYear, timeAgo,
@@ -157,7 +157,7 @@ export function assetsView({ el, rerender }) {
                     <td class="num">${money(Math.round(h.stock.averageCost * 100))}</td>
                     <td class="num ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)}<div class="small">${signedPct(h.gainPct)}</div></td>
                     <td class="num">${pct(h.weight, 0)}</td>
-                    <td class="num"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
+                    <td class="num" style="white-space:nowrap"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
                 </tr>`).join("")}
                 </tbody>
             </table>
@@ -180,6 +180,7 @@ export function assetsView({ el, rerender }) {
                 <div><span>Weight</span>${pct(h.weight, 0)}</div>
             </div>
             <div class="cc-actions" style="margin-top:8px">
+                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a>
                 <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a>
             </div>
         </div>`).join("")}
@@ -338,11 +339,26 @@ export function stockFormView({ el, params }) {
     const fields = [
         { name: "symbol", label: "Stock ticker", value: stock?.symbol || "", placeholder: "e.g. AAPL", disabled: !!stock, maxlength: 15 },
         { name: "shares", label: "Number of shares", type: "decimal", value: stock ? String(stock.shares) : "", help: "Fractional shares are supported, such as 1.5." },
-        { name: "averageCost", label: "Average cost per share (USD)", type: "decimal", value: stock ? String(stock.averageCost) : "", help: "Shown in your brokerage app as “average cost”." },
+        { name: "averageCost", label: stock ? "Average cost per share" : "Price paid per share", type: "decimal", value: stock ? String(stock.averageCost) : "", help: stock ? "Shown in your brokerage app as “average cost”." : "For several purchases, enter your brokerage’s “average cost”." },
         { name: "price", label: "Current price (optional)", type: "decimal", help: "Leave blank to fetch the live price automatically. Fill it in for funds the price service does not cover (e.g. 401k funds)." },
     ];
-    el.innerHTML = formPageHtml({ title: stock ? `Edit ${stock.symbol}` : "Add a holding", fields, cancelHref: "#/assets", deleteLabel: stock ? "Remove" : "" });
+    el.innerHTML = formPageHtml({
+        title: stock ? `Edit ${stock.symbol}` : "Add a holding", fields, cancelHref: "#/assets", deleteLabel: stock ? "Remove" : "",
+        extraHtml: stock ? `<p style="margin:4px 0 0"><a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(stock.id)}/buy">Bought more ${esc(stock.symbol)}? Add a purchase</a></p>` : "",
+        afterFields: stock ? purchaseHistoryHtml(stock) : "",
+    });
     const form = el.querySelector("[data-form]");
+    if (!stock) {
+        // Typing a ticker you already hold: explain that the shares will be combined.
+        const symbolInput = form.querySelector("[name=symbol]");
+        symbolInput.closest(".field").insertAdjacentHTML("afterend", `<p class="notice small" data-combine hidden></p>`);
+        const hint = form.querySelector("[data-combine]");
+        symbolInput.addEventListener("input", () => {
+            const held = store.all("stocks").find((s) => s.symbol === symbolInput.value.trim().toUpperCase());
+            hint.hidden = !held;
+            if (held) hint.innerHTML = `You already own <strong>${num(held.shares, 6)} ${esc(held.symbol)}</strong> at ${money(Math.round(held.averageCost * 100))} average. Saving adds these shares to it and works out the new average cost.`;
+        });
+    }
     el.querySelector("[data-delete]")?.addEventListener("click", async () => {
         if (!confirmAction(`Remove ${stock.symbol} from your holdings?`)) return;
         await store.remove("stocks", stock.id);
@@ -354,10 +370,8 @@ export function stockFormView({ el, params }) {
         const v = readForm(form);
         const errors = {};
         const symbol = stock ? stock.symbol : String(v.symbol || "").trim().toUpperCase();
-        if (!stock) {
-            if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) errors.symbol = "Enter a valid stock ticker.";
-            else if (store.all("stocks").some((s) => s.symbol === symbol)) errors.symbol = "This stock is already listed. Edit its shares and cost instead.";
-        }
+        if (!stock && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) errors.symbol = "Enter a valid stock ticker.";
+        const held = stock ? null : store.all("stocks").find((s) => s.symbol === symbol);
         const shares = toDecimal(v.shares);
         if (shares === null || shares <= 0) errors.shares = "Enter the number of shares (more than 0).";
         const averageCost = toDecimal(v.averageCost);
@@ -366,8 +380,24 @@ export function stockFormView({ el, params }) {
         const price = priceText ? toDecimal(priceText) : null;
         if (priceText && (price === null || price <= 0)) errors.price = "Enter a price greater than 0, or leave it blank.";
         if (showErrors(form, errors)) return;
-        const saved = { ...(stock || { id: newId(), createdAt: new Date().toISOString() }), symbol, shares, averageCost };
+        let saved;
+        if (held) {
+            // Same ticker added again: combine into the existing holding.
+            const combined = combinePurchase(held.shares, held.averageCost, shares, averageCost);
+            saved = { ...held, ...combined, purchases: [...purchasesOf(held), { date: day, shares, price: averageCost, kind: "buy" }] };
+        } else if (stock) {
+            const changed = shares !== stock.shares || averageCost !== stock.averageCost;
+            saved = { ...stock, shares, averageCost, purchases: changed ? [...purchasesOf(stock), { date: day, shares, price: averageCost, kind: "edit" }] : purchasesOf(stock) };
+        } else {
+            saved = { id: newId(), createdAt: new Date().toISOString(), symbol, shares, averageCost, purchases: [{ date: day, shares, price: averageCost, kind: "start" }] };
+        }
         await store.save("stocks", saved);
+        if (held) {
+            if (price) await quotes.setManualPrice(symbol, price, day);
+            toast(`Added ${num(shares, 6)} ${symbol}: now ${num(saved.shares, 6)} shares at ${money(Math.round(saved.averageCost * 100))} average.`);
+            navigate("/assets");
+            return;
+        }
         if (price) {
             await quotes.setManualPrice(symbol, price, day);
         } else if (!store.get("quotes", quoteId(symbol))?.price) {
@@ -402,3 +432,64 @@ export function cashFormView({ el }) {
     });
 }
 
+
+const purchasesOf = (stock) => (Array.isArray(stock.purchases) ? stock.purchases : []);
+const PURCHASE_KIND = { start: "Added", buy: "Bought", edit: "Set to" };
+
+function purchaseHistoryHtml(stock) {
+    const list = purchasesOf(stock).slice().reverse();
+    if (!list.length) return "";
+    return `<div class="field"><label>History</label>
+        <ul class="list purchase-list">${list.map((p) => `
+            <li class="row"><span class="row-main"><span class="row-title">${esc(PURCHASE_KIND[p.kind] || "Bought")} ${num(p.shares, 6)} ${p.kind === "edit" ? "shares" : `share${p.shares === 1 ? "" : "s"}`} @ ${money(Math.round(p.price * 100))}</span>
+                <span class="row-sub">${esc(fmtDay(p.date))}</span></span>
+                <span class="row-end num">${p.kind === "edit" ? "" : money(Math.round(p.shares * p.price * 100))}</span></li>`).join("")}
+        </ul></div>`;
+}
+
+/** Record another purchase of a stock you already hold (#/stock/:id/buy). */
+export function stockBuyView({ el, params }) {
+    const stock = store.get("stocks", params.id);
+    if (!stock) return notFound(el, "holding");
+    const day = today();
+    el.innerHTML = formPageHtml({
+        title: `Buy more ${stock.symbol}`,
+        description: `You have <strong>${num(stock.shares, 6)} shares</strong> at ${money(Math.round(stock.averageCost * 100))} average. Enter the new purchase and the app works out your new total and average cost.`,
+        fields: [
+            { name: "shares", label: "Shares bought", type: "decimal", help: "Fractional shares are supported, such as 0.5." },
+            { name: "price", label: "Price paid per share", type: "decimal" },
+            { name: "date", label: "Date", type: "date", value: day },
+        ],
+        afterFields: `<div class="notice small" data-preview hidden></div>`,
+        submitLabel: "Add purchase",
+        cancelHref: "#/assets",
+    });
+    const form = el.querySelector("[data-form]");
+    const preview = form.querySelector("[data-preview]");
+    const read = () => {
+        const v = readForm(form);
+        return { shares: toDecimal(v.shares), price: toDecimal(v.price), date: v.date };
+    };
+    form.addEventListener("input", () => {
+        const { shares, price } = read();
+        const ok = shares > 0 && price !== null && price >= 0;
+        preview.hidden = !ok;
+        if (!ok) return;
+        const after = combinePurchase(stock.shares, stock.averageCost, shares, price);
+        preview.innerHTML = `After this purchase: <strong>${num(after.shares, 6)} shares</strong> at <strong>${money(Math.round(after.averageCost * 100))}</strong> average · ${money(Math.round(after.shares * after.averageCost * 100))} invested.`;
+    });
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const { shares, price, date } = read();
+        const errors = {};
+        if (shares === null || shares <= 0) errors.shares = "Enter the number of shares (more than 0).";
+        if (price === null || price < 0) errors.price = "Enter the price per share (0 or more).";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) errors.date = "Pick a date.";
+        if (showErrors(form, errors)) return;
+        const after = combinePurchase(stock.shares, stock.averageCost, shares, price);
+        const current = store.get("stocks", stock.id) || stock;
+        await store.save("stocks", { ...current, ...after, purchases: [...purchasesOf(current), { date, shares, price, kind: "buy" }] });
+        toast(`${stock.symbol}: now ${num(after.shares, 6)} shares at ${money(Math.round(after.averageCost * 100))} average.`);
+        navigate("/assets");
+    });
+}

@@ -172,7 +172,9 @@ function buildWebImport(backup, live) {
         if (!symbol) continue;
         const id = stockBySymbol.get(symbol) || `stk-${symbol}`;
         stockBySymbol.set(symbol, id);
+        const liveStock = (live.stocks || []).find((x) => x.id === id);
         changes.stocks.push({
+            ...(liveStock?.purchases ? { purchases: liveStock.purchases } : {}),
             id, updatedAt: stamp, symbol,
             shares: toDecimal(s.shares) ?? 0, averageCost: toDecimal(s.average_cost) ?? 0,
             createdAt: createdFallback,
@@ -194,7 +196,9 @@ function buildWebImport(backup, live) {
         const month = String(b.month || "").slice(0, 7);
         if (!/^\d{4}-\d{2}$/.test(month)) continue;
         const name = String(b.name || "").trim();
-        changes.budgets.push({ id: budgetId(month, name), updatedAt: stamp, month, name, amountCents: toCents(b.amount) || 0 });
+        const id = budgetId(month, name);
+        const note = (live.budgets || []).find((x) => x.id === id)?.note;
+        changes.budgets.push({ id, updatedAt: stamp, month, name, amountCents: toCents(b.amount) || 0, ...(note ? { note } : {}) });
     }
     for (const a of backup.assets || []) {
         changes.assets.push({
