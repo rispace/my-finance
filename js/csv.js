@@ -162,7 +162,9 @@ export const EARNING_HEADERS = ["Date", "Source", "Amount (USD)", "Type", "Depos
 
 export function earningsCsv(items, typeName, accountName) {
     return toCsv(EARNING_HEADERS, items.map((e) => [
-        e.date, e.description, centsToInput(e.amountCents), typeName(e.type), accountName(e.accountId), e.notes || "",
+        e.date, e.description, centsToInput(e.amountCents), typeName(e.type),
+        Array.isArray(e.splits) && e.splits.length > 1 ? e.splits.map((d) => `${accountName(d.accountId)} ${centsToInput(d.amountCents)}`).join(" + ") : accountName(e.accountId),
+        e.notes || "",
     ]));
 }
 

@@ -139,3 +139,31 @@ console.log("calc/import/csv unit tests passed");
     assert.equal(c.averageCost, 110);
     console.log("combinePurchase ✓");
 }
+
+// ---- cash assets linked to bank accounts
+{
+    const { linkedBalance, liveAssets, depositsOf } = await import("../js/calc.js");
+    const asset = { id: "a1", kind: "cash", name: "CSB", valueCents: 100000, valueDate: "2026-10-10", valueSetAt: "2026-10-10T12:00:00.000Z", accountIds: ["csb"] };
+    const data = {
+        assets: [asset],
+        transactions: [
+            { id: "t0", date: "2026-10-09", accountId: "csb", amountCents: 999, description: "before" },
+            { id: "t1", date: "2026-10-10", accountId: "csb", amountCents: 500, description: "same day, earlier", createdAt: "2026-10-10T08:00:00.000Z" },
+            { id: "t2", date: "2026-10-10", accountId: "csb", amountCents: 1500, description: "same day, later", createdAt: "2026-10-10T13:00:00.000Z" },
+            { id: "t3", date: "2026-10-12", accountId: "csb", amountCents: 2500, description: "after" },
+            { id: "t4", date: "2026-10-12", accountId: "chase-credit", amountCents: 7777, description: "other account" },
+        ],
+        earnings: [
+            { id: "e1", date: "2026-10-15", accountId: "csb", amountCents: 200000, description: "pay" },
+            { id: "e2", date: "2026-10-30", accountId: "csb", amountCents: 250000, splits: [{ accountId: "csb", amountCents: 200000 }, { accountId: "chase", amountCents: 50000 }], description: "split pay" },
+        ],
+    };
+    const f = linkedBalance(asset, data);
+    assert.equal(f.spent, 4000);           // t2 + t3
+    assert.equal(f.deposited, 400000);     // e1 + csb part of e2
+    assert.equal(f.valueCents, 100000 - 4000 + 400000);
+    assert.equal(liveAssets(data)[0].valueCents, 496000);
+    assert.equal(linkedBalance({ ...asset, accountIds: [] }, data), null);
+    assert.deepEqual(depositsOf({ accountId: "x", amountCents: 5 }), [{ accountId: "x", amountCents: 5 }]);
+    console.log("linked cash balances ✓");
+}

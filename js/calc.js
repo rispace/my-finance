@@ -125,7 +125,7 @@ export function dashboard(data, month, todayDay) {
     const folio = portfolio(data);
     const investmentsValue = folio.totalValue !== null ? folio.totalValue : folio.pricedValue + folio.cashBalance;
     const hasInvestments = folio.holdings.length > 0 || folio.cashRecorded;
-    const assets = [...data.assets].sort(assetOrder);
+    const assets = liveAssets(data).sort(assetOrder);
     const assetsValue = sum(assets, (a) => a.valueCents);
     const recent = [...transactions].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 6);
 
@@ -517,6 +517,56 @@ const assetKindOrder = (k) => k;
 export const assetOrder = (a, b) => (assetKindOrder(a.kind) < assetKindOrder(b.kind) ? -1 : a.kind > b.kind ? 1 : 0) || byName(a, b);
 
 /** Which optional fields make sense for each asset type. */
+// ------------------------------------------------- bank-linked cash assets
+//
+// A "Cash / savings" asset can be linked to bank accounts / debit cards from
+// the payment-method list. Its balance then starts from the value you last
+// entered and moves with what happens in those accounts afterwards:
+// spending paid from them takes money out, earnings deposited into them add it.
+
+/** Payment-method kinds that hold money (not credit cards). */
+export const BANK_ACCOUNT_KINDS = ["debit", "cash", "other"];
+
+/** Where an earning's money went: [{ accountId, amountCents }]. */
+export function depositsOf(e) {
+    if (Array.isArray(e.splits) && e.splits.length) return e.splits.filter((s) => s.accountId);
+    return e.accountId ? [{ accountId: e.accountId, amountCents: e.amountCents }] : [];
+}
+
+/** Did this happen after the balance was last set? Same-day items count if added later. */
+function afterAnchor(item, asset) {
+    if (item.date > asset.valueDate) return true;
+    return item.date === asset.valueDate && !!asset.valueSetAt && (item.createdAt || "") > asset.valueSetAt;
+}
+
+/** Live balance of a linked cash asset, with what moved it. */
+export function linkedBalance(asset, data) {
+    const linked = new Set(asset.kind === "cash" && Array.isArray(asset.accountIds) ? asset.accountIds : []);
+    if (!linked.size) return null;
+    const items = [];
+    for (const t of data.transactions) {
+        if (linked.has(t.accountId) && afterAnchor(t, asset)) items.push({ kind: "spend", id: t.id, date: t.date, label: t.description, accountId: t.accountId, amountCents: -t.amountCents });
+    }
+    for (const e of data.earnings) {
+        if (!afterAnchor(e, asset)) continue;
+        for (const d of depositsOf(e)) {
+            if (linked.has(d.accountId)) items.push({ kind: "deposit", id: e.id, date: e.date, label: e.description, accountId: d.accountId, amountCents: d.amountCents });
+        }
+    }
+    items.sort((a, b) => b.date.localeCompare(a.date));
+    const spent = -sum(items.filter((i) => i.kind === "spend"), (i) => i.amountCents);
+    const deposited = sum(items.filter((i) => i.kind === "deposit"), (i) => i.amountCents);
+    return { startCents: asset.valueCents, startDate: asset.valueDate, spent, deposited, valueCents: asset.valueCents - spent + deposited, items };
+}
+
+/** Assets with linked cash balances brought up to date (valueCents = live value). */
+export function liveAssets(data) {
+    return data.assets.map((a) => {
+        const flow = linkedBalance(a, data);
+        return flow ? { ...a, valueCents: flow.valueCents, flow } : a;
+    });
+}
+
 export const ASSET_FIELDS_BY_KIND = {
     vehicle: ["purchaseDate", "purchaseCents", "loanId"],
     property: ["purchaseDate", "purchaseCents", "loanId"],
@@ -525,7 +575,7 @@ export const ASSET_FIELDS_BY_KIND = {
 };
 
 export function assetRows(data) {
-    return [...data.assets].sort(assetOrder).map((asset) => {
+    return liveAssets(data).sort(assetOrder).map((asset) => {
         const loan = asset.loanId ? data.loans.find((l) => l.id === asset.loanId) : null;
         const loanBal = loan ? loanBalance(loan, data.loanPayments) : null;
         const change = asset.purchaseCents ? asset.valueCents - asset.purchaseCents : null;
@@ -573,7 +623,7 @@ export function filterEarnings(earnings, f) {
     return earnings.filter((e) =>
         (!q || fold(e.description).includes(q) || fold(e.notes).includes(q)) &&
         (!f.type || e.type === f.type) &&
-        (!f.account || e.accountId === f.account) &&
+        (!f.account || depositsOf(e).some((d) => d.accountId === f.account)) &&
         (!f.from || e.date >= f.from) &&
         (!f.to || e.date <= f.to));
 }

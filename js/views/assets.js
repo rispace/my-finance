@@ -4,7 +4,7 @@
 import * as store from "../store.js";
 import {
     assetRows, portfolio, ASSET_KINDS, ASSET_FIELDS_BY_KIND, LOAN_KINDS, label, currentValuation,
-    quoteId, INVESTMENT_CASH_ID, combinePurchase,
+    quoteId, INVESTMENT_CASH_ID, combinePurchase, BANK_ACCOUNT_KINDS, linkedBalance, ACCOUNT_KINDS,
 } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, num, today, fmtDay, fmtDayNoYear, fmtMonthYear, timeAgo,
@@ -56,8 +56,12 @@ export function assetsView({ el, rerender }) {
                 <a class="btn btn-ghost btn-small" href="#/asset/${id}/edit">Edit</a>
             </div>
             <div class="stat-value" style="margin-top:8px">${money(a.valueCents)}</div>
+            ${a.flow ? `<div class="muted small">Updates from ${esc(a.accountIds.map((id) => store.get("accounts", id)?.name).filter(Boolean).join(", "))}</div>
+            <div class="small flow-line">${money(a.flow.startCents)} on ${esc(fmtDay(a.flow.startDate))}${a.flow.deposited ? ` · <span class="good">+${money(a.flow.deposited)} deposited</span>` : ""}${a.flow.spent ? ` · <span class="bad">−${money(a.flow.spent)} spent</span>` : ""}</div>
+            ${a.flow.items.length ? `<details style="margin-top:8px"><summary class="small">${plural(a.flow.items.length, "change")} since ${esc(fmtDay(a.flow.startDate))}</summary>
+                <ul class="list">${a.flow.items.slice(0, 30).map((i) => `<li class="row" style="padding:6px 0"><div class="row-main small">${esc(fmtDayNoYear(i.date))} · ${esc(i.label)} <span class="faint">· ${esc(store.get("accounts", i.accountId)?.name || "")}</span></div><div class="row-end small num ${i.amountCents >= 0 ? "good" : ""}">${i.amountCents >= 0 ? "+" : "−"}${money(Math.abs(i.amountCents))}</div></li>`).join("")}</ul></details>` : ""}` : `
             <div class="muted small">${a.kind === "cash" ? "Balance" : "Estimated value"} as of ${esc(fmtDay(a.valueDate))}${row.change !== null
-                ? ` · <span class="${row.change >= 0 ? "good" : "bad"}">${signedMoney(row.change)} (${signedPct(row.changePct)}) since purchase</span>` : ""}</div>
+                ? ` · <span class="${row.change >= 0 ? "good" : "bad"}">${signedMoney(row.change)} (${signedPct(row.changePct)}) since purchase</span>` : ""}</div>`}
             ${row.loanBalance !== null ? `
             <div class="cc-figures" style="margin-top:14px">
                 <div><span>Value</span><strong>${money(a.valueCents, 0)}</strong></div>
@@ -211,7 +215,7 @@ export function assetsView({ el, rerender }) {
 const KIND_COPY = {
     vehicle: { intro: "A car, motorcycle or boat. Link its loan to see your equity.", value: ["Current value (USD)", "Kelley Blue Book or Edmunds value (private party or trade-in). Update it every few months."], valueDate: "Value as of", name: "e.g. 2022 Honda CR-V EX-L", notes: "Mileage, condition, warranty…" },
     property: { intro: "A home or land. Link the mortgage to see your equity.", value: ["Current value (USD)", "An estimate such as Zillow or a recent appraisal."], valueDate: "Value as of", name: "e.g. Home — 123 Main St", notes: "Address, purchase details…" },
-    cash: { intro: "A savings, checking or emergency-fund balance.", value: ["Balance (USD)", "The current balance. Update it whenever it changes."], valueDate: "Balance as of", name: "e.g. Emergency fund", notes: "Bank, account type, interest rate…" },
+    cash: { intro: "A savings or checking balance. Link the bank account or debit card and the balance updates by itself from your spending and deposits.", value: ["Balance", "What the account holds on the date below."], valueDate: "Balance as of", name: "e.g. CSB checking", notes: "Account type, interest rate…" },
     other: { intro: "Anything else with resale value: jewelry, electronics, collectibles.", value: ["Current value (USD)", "What you could reasonably sell it for today."], valueDate: "Value as of", name: "e.g. MacBook Air", notes: "Model, condition…" },
 };
 const OPTIONAL = ["purchaseDate", "purchaseCents", "loanId"];
@@ -221,7 +225,8 @@ export function assetFormView({ el, params, query }) {
     if (params.id && !asset) return notFound(el, "asset");
     const day = today();
     const loans = store.all("loans").sort(byName);
-    const initial = asset || {
+    const liveFlow = asset ? linkedBalance(asset, store.snapshot()) : null;
+    const initial = asset ? { ...asset, ...(liveFlow ? { valueCents: liveFlow.valueCents, valueDate: day } : {}) } : {
         name: query.name || "", kind: ASSET_KINDS.some(([k]) => k === query.kind) ? query.kind : "vehicle",
         valueCents: null, valueDate: day, purchaseDate: query.purchaseDate || "", purchaseCents: null,
         loanId: loans.some((l) => l.id === query.loan) ? query.loan : "", notes: "",
@@ -241,11 +246,28 @@ export function assetFormView({ el, params, query }) {
         title: asset ? `Edit ${asset.name}` : "Add an asset", fields, cancelHref: "#/assets",
         extraHtml: `<p class="muted" data-intro></p>`, deleteLabel: asset ? "Delete" : "",
     });
+    // Cash / savings: which bank accounts or debit cards hold this money.
+    const linkedNow = new Set(asset?.accountIds || []);
+    const takenBy = new Map();
+    for (const other of store.all("assets")) if (other.id !== asset?.id) for (const id of other.accountIds || []) takenBy.set(id, other.name);
+    const bankAccounts = store.all("accounts").filter((a) => BANK_ACCOUNT_KINDS.includes(a.kind) && (!a.archived || linkedNow.has(a.id))).sort(byName);
+    el.querySelector("[data-field=valueDate]").insertAdjacentHTML("afterend", `
+        <div class="field" data-field="accountIds">
+            <label>Linked bank account / debit card</label>
+            <div class="check-list">
+                ${bankAccounts.map((a) => `<label class="check-item ${takenBy.has(a.id) ? "muted" : ""}">
+                    <input type="checkbox" name="link" value="${esc(a.id)}" ${linkedNow.has(a.id) ? "checked" : ""} ${takenBy.has(a.id) ? "disabled" : ""}>
+                    <span>${esc(a.name)} <span class="faint small">· ${esc(label(ACCOUNT_KINDS, a.kind))}${takenBy.has(a.id) ? ` · linked to ${esc(takenBy.get(a.id))}` : ""}</span></span></label>`).join("") || `<p class="muted small" style="margin:0">No bank accounts or debit cards yet.</p>`}
+            </div>
+            <input type="text" name="newAccount" placeholder="+ Add another bank account, e.g. Chase savings" maxlength="60" autocomplete="off" style="margin-top:8px">
+            <p class="help">Spending paid with a linked account and earnings deposited into it update this balance automatically. Leave all unticked to update it by hand.</p>
+        </div>`);
     const form = el.querySelector("[data-form]");
     const box = (name) => form.querySelector(`[data-field="${name}"]`);
     const update = () => {
         const kind = form.querySelector("[name=kind]").value in KIND_COPY ? form.querySelector("[name=kind]").value : "other";
         for (const name of OPTIONAL) box(name).hidden = !ASSET_FIELDS_BY_KIND[kind].includes(name);
+        box("accountIds").hidden = kind !== "cash";
         const c = KIND_COPY[kind];
         el.querySelector("[data-intro]").textContent = c.intro;
         box("valueCents").querySelector("label").textContent = c.value[0];
@@ -277,15 +299,33 @@ export function assetFormView({ el, params, query }) {
         const purchase = allowed.includes("purchaseCents") ? parse.money(v.purchaseCents, { required: false }) : { value: null };
         for (const [k, r] of Object.entries({ name, valueCents: value, valueDate, purchaseDate, purchaseCents: purchase })) if (r.error) errors[k] = r.error;
         if (showErrors(form, errors)) return;
+        const changes = { assets: [] };
+        // Linked accounts (cash only), including one typed in as new.
+        let accountIds = [];
+        if (v.kind === "cash") {
+            accountIds = [...form.querySelectorAll("[name=link]:checked")].map((c) => c.value);
+            const newName = String(v.newAccount || "").replace(/\s+/g, " ").trim().slice(0, 60);
+            if (newName) {
+                const existing = store.all("accounts").find((a) => a.name.toLowerCase() === newName.toLowerCase());
+                const account = existing || { id: newId(), name: newName, kind: "debit", archived: false, createdAt: new Date().toISOString() };
+                if (!existing) changes.accounts = [account];
+                if (!accountIds.includes(account.id)) accountIds.push(account.id);
+            }
+        }
+        const sameLinks = asset && accountIds.length === linkedNow.size && accountIds.every((id) => linkedNow.has(id));
+        // A linked balance only gets a new starting point when you change it (or its accounts).
+        const keepAnchor = asset && liveFlow && sameLinks && value.value === liveFlow.valueCents;
         const saved = {
             ...(asset || { id: newId(), createdAt: new Date().toISOString() }),
-            name: name.value, kind: v.kind, valueCents: value.value, valueDate: valueDate.value,
+            name: name.value, kind: v.kind,
+            ...(keepAnchor ? {} : { valueCents: value.value, valueDate: valueDate.value, valueSetAt: new Date().toISOString() }),
             purchaseDate: purchaseDate.value, purchaseCents: purchase.value,
             loanId: allowed.includes("loanId") ? (v.loanId || null) : null,
+            accountIds,
             notes: v.notes.trim(),
         };
-        const changes = { assets: [saved] };
-        if (!asset || asset.valueCents !== saved.valueCents) {
+        changes.assets.push(saved);
+        if (!asset || (!keepAnchor && (liveFlow ? liveFlow.valueCents : asset.valueCents) !== saved.valueCents)) {
             changes.assetValuations = [{ id: newId(), assetId: saved.id, date: saved.valueDate, valueCents: saved.valueCents, note: asset ? "Edited" : "Initial value", createdAt: new Date().toISOString() }];
         }
         await store.saveMany(changes);
@@ -298,14 +338,18 @@ export function assetValueView({ el, params }) {
     const asset = store.get("assets", params.id);
     if (!asset) return notFound(el, "asset");
     const day = today();
+    const flow = linkedBalance(asset, store.snapshot());
+    const current = flow ? flow.valueCents : asset.valueCents;
     const fields = [
-        { name: "value", label: "New value (USD)", type: "money", value: asset.valueCents },
+        { name: "value", label: asset.kind === "cash" ? "Actual balance" : "New value", type: "money", value: current },
         { name: "date", label: "As of", type: "date", value: day },
         { name: "note", label: "Source / note", placeholder: "e.g. KBB private party, 61,200 miles", maxlength: 160 },
     ];
     el.innerHTML = formPageHtml({
         title: `Update ${asset.kind === "cash" ? "balance" : "value"} · ${asset.name}`,
-        description: `Currently ${esc(money(asset.valueCents))} as of ${esc(fmtDay(asset.valueDate))}. Each update is kept so you can see depreciation over time.`,
+        description: flow
+            ? `The app has it at ${esc(money(current))}, worked out from your linked accounts. If your bank shows a different balance, enter it here and the automatic updates continue from that.`
+            : `Currently ${esc(money(asset.valueCents))} as of ${esc(fmtDay(asset.valueDate))}. Each update is kept so you can see depreciation over time.`,
         fields, submitLabel: "Save value", cancelHref: "#/assets",
     });
     const form = el.querySelector("[data-form]");
@@ -323,7 +367,7 @@ export function assetValueView({ el, params }) {
         const latest = currentValuation([...store.all("assetValuations"), valuation], asset.id);
         await store.saveMany({
             assetValuations: [valuation],
-            assets: [{ ...asset, valueCents: latest.valueCents, valueDate: latest.date }],
+            assets: [{ ...asset, valueCents: latest.valueCents, valueDate: latest.date, valueSetAt: new Date().toISOString() }],
         });
         toast(`${asset.name}: updated to ${money(latest.valueCents)}.`);
         navigate("/assets");

@@ -4,6 +4,7 @@
 import * as store from "../store.js";
 import {
     earningsSummary, filterEarnings, sortTransactions, groupTransactions, EARNING_TYPES, EARNING_COLORS, label, SORTS,
+    depositsOf, BANK_ACCOUNT_KINDS,
 } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, cssPct, today, monthOf, isMonth, isDay, shiftMonth, toCents, centsToInput,
@@ -19,6 +20,12 @@ let shown = PAGE;
 
 const typeName = (key) => label(EARNING_TYPES, key || "other");
 const accountName = (id) => store.get("accounts", id)?.name || "";
+/** "CSB" or "CSB $2,000.00 + Chase debit $500.00" */
+const depositText = (e) => {
+    const parts = depositsOf(e);
+    if (parts.length <= 1) return accountName(e.accountId);
+    return parts.map((d) => `${accountName(d.accountId)} ${money(d.amountCents)}`).join(" + ");
+};
 
 export function earningsView({ el, query, rerender }) {
     const day = today();
@@ -137,7 +144,7 @@ export function earningsView({ el, query, rerender }) {
                 <span class="dot" style="background:${EARNING_COLORS[e.type] || EARNING_COLORS.other}" aria-hidden="true">+</span>
                 <span class="row-main">
                     <span class="row-title" style="display:block">${esc(e.description)}</span>
-                    <span class="row-sub" style="display:block">${filters.sort === "date_desc" || filters.sort === "date_asc" ? "" : `${esc(fmtDay(e.date))} · `}${esc(typeName(e.type))}${e.accountId ? ` · ${esc(accountName(e.accountId))}` : ""}${e.notes ? ` · ${esc(e.notes)}` : ""}</span>
+                    <span class="row-sub" style="display:block">${filters.sort === "date_desc" || filters.sort === "date_asc" ? "" : `${esc(fmtDay(e.date))} · `}${esc(typeName(e.type))}${e.accountId ? ` · ${esc(depositText(e))}` : ""}${e.notes ? ` · ${esc(e.notes)}` : ""}</span>
                 </span>
                 <span class="row-end row-amount good">${money(e.amountCents)}</span>
             </button>`).join("")}
@@ -183,7 +190,7 @@ function openEarning(id, rerender) {
         <dl class="detail-list">
             <dt>Date</dt><dd>${esc(fmtDayFull(e.date))}</dd>
             <dt>Type</dt><dd>${esc(typeName(e.type))}</dd>
-            <dt>Deposited to</dt><dd>${esc(accountName(e.accountId) || "—")}</dd>
+            <dt>Deposited to</dt><dd>${esc(depositText(e) || "—")}</dd>
             <dt>Notes</dt><dd>${esc(e.notes || "—")}</dd>
             <dt>Added</dt><dd>${esc(fmtDateTime(e.createdAt))}</dd>
         </dl>
@@ -222,7 +229,21 @@ export function earningFormView({ el, params, query }) {
         date: today(), description: template?.description || "", type: template?.type || lastDeposit?.type || "salary",
         accountId: template?.accountId || lastDeposit?.accountId || "", notes: "", amountCents: template?.amountCents ?? null,
     };
-    const accounts = [...data.accounts].sort(byName).filter((a) => !a.archived || a.id === e.accountId);
+    // Money lands in bank accounts / debit cards; credit cards only show up if already used here.
+    const initialSplits = depositsOf(e);
+    const usedIds = new Set(initialSplits.map((d) => d.accountId));
+    const accounts = [...data.accounts].sort(byName).filter((a) => usedIds.has(a.id) || (!a.archived && BANK_ACCOUNT_KINDS.includes(a.kind)));
+    const accountOptions = (selected) => `<option value="">Not specified</option>
+        ${accounts.map((a) => `<option value="${esc(a.id)}" ${a.id === selected ? "selected" : ""}>${esc(a.name)}</option>`).join("")}
+        <option value="__new">+ Add a bank account…</option>`;
+    const depositRow = (d = { accountId: "", amountCents: null }) => `
+        <div class="deposit-row">
+            <select name="depAccount" aria-label="Account">${accountOptions(d.accountId)}</select>
+            <input name="depAmount" inputmode="decimal" placeholder="Amount" aria-label="Amount for this account" autocomplete="off" value="${d.amountCents != null ? centsToInput(d.amountCents) : ""}">
+            <button type="button" class="btn-ghost remove-row" aria-label="Remove account">×</button>
+            <input name="depNew" placeholder="New account name, e.g. Chase savings" maxlength="60" autocomplete="off" hidden>
+        </div>`;
+    const startRows = initialSplits.length ? initialSplits : [{ accountId: e.accountId || "", amountCents: null }];
     const sources = [...new Set([...data.earnings].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).map((x) => x.description))].slice(0, 40);
 
     el.innerHTML = `
@@ -255,11 +276,12 @@ export function earningFormView({ el, params, query }) {
                 </div>
             </div>
             <div class="field">
-                <label for="f-account">Deposited to</label>
-                <select id="f-account"><option value="">Not specified</option>
-                    ${accounts.map((a) => `<option value="${esc(a.id)}" ${a.id === e.accountId ? "selected" : ""}>${esc(a.name)}</option>`).join("")}
-                </select>
-                <p class="help"><a href="#/settings">Manage accounts</a> (same list as payment methods)</p>
+                <label>Deposited to</label>
+                <div data-deposits class="deposits">${startRows.map(depositRow).join("")}</div>
+                <p class="small" data-split-left hidden></p>
+                <button type="button" class="btn-secondary btn-small" data-split>+ Split between accounts</button>
+                <ul class="errorlist" data-error-for="deposit"></ul>
+                <p class="help">Deposits go into the account’s linked balance on the Assets page, if it has one.</p>
             </div>
             <div class="field">
                 <label for="f-notes">Notes</label>
@@ -276,6 +298,42 @@ export function earningFormView({ el, params, query }) {
 
     const form = el.querySelector("[data-form]");
     const $ = (sel) => form.querySelector(sel);
+    const box = $("[data-deposits]");
+    const refreshDeposits = () => {
+        const rows = [...box.querySelectorAll(".deposit-row")];
+        const split = rows.length > 1;
+        box.classList.toggle("is-split", split);
+        $("[data-split]").textContent = split ? "+ Add another account" : "+ Split between accounts";
+        rows.forEach((r) => {
+            r.querySelector("[name=depNew]").hidden = r.querySelector("[name=depAccount]").value !== "__new";
+        });
+        const left = $("[data-split-left]");
+        left.hidden = !split;
+        if (split) {
+            const total = toCents($("#f-amount").value) || 0;
+            const assigned = rows.reduce((s, r) => s + (toCents(r.querySelector("[name=depAmount]").value) || 0), 0);
+            const diff = total - assigned;
+            left.className = `small ${diff === 0 ? "good" : "bad"}`;
+            left.textContent = diff === 0 ? "Split adds up to the total." : diff > 0 ? `${money(diff)} not assigned yet` : `${money(-diff)} more than the total`;
+        }
+    };
+    $("[data-split]").addEventListener("click", () => {
+        box.insertAdjacentHTML("beforeend", depositRow());
+        // The first row now needs its own amount: start it at the full total.
+        const first = box.querySelector("[name=depAmount]");
+        if (!first.value) first.value = $("#f-amount").value;
+        refreshDeposits();
+        box.lastElementChild.querySelector("select").focus();
+    });
+    box.addEventListener("click", (ev) => {
+        const b = ev.target.closest(".remove-row");
+        if (!b) return;
+        b.closest(".deposit-row").remove();
+        refreshDeposits();
+    });
+    form.addEventListener("input", refreshDeposits);
+    form.addEventListener("change", refreshDeposits);
+    refreshDeposits();
     let then = "add";
     form.querySelectorAll("[data-then]").forEach((b) => b.addEventListener("click", () => { then = b.dataset.then; }));
     el.querySelector("[data-delete]")?.addEventListener("click", async () => {
@@ -295,14 +353,40 @@ export function earningFormView({ el, params, query }) {
         else if (amountCents < 1) errors.amount = "Ensure this value is greater than or equal to 0.01.";
         if (!description) errors.source = "This field is required.";
         if (!isDay(date)) errors.date = "Enter a valid date.";
+        // Where the money went.
+        const newAccounts = [];
+        const deposits = [];
+        const rows = [...box.querySelectorAll(".deposit-row")];
+        for (const r of rows) {
+            let accountId = r.querySelector("[name=depAccount]").value;
+            if (accountId === "__new") {
+                const name = r.querySelector("[name=depNew]").value.replace(/\s+/g, " ").trim().slice(0, 60);
+                if (!name) { errors.deposit = "Type a name for the new account."; break; }
+                const existing = [...store.all("accounts"), ...newAccounts].find((a) => a.name.toLowerCase() === name.toLowerCase());
+                const account = existing || { id: newId(), name, kind: "debit", archived: false, createdAt: new Date().toISOString() };
+                if (!existing) newAccounts.push(account);
+                accountId = account.id;
+            }
+            const amount = rows.length > 1 ? toCents(r.querySelector("[name=depAmount]").value) : amountCents;
+            if (rows.length > 1 && (!accountId || amount === null || amount < 1)) { errors.deposit = "Pick an account and an amount on every row of the split."; break; }
+            deposits.push({ accountId: accountId || null, amountCents: amount });
+        }
+        if (!errors.deposit && rows.length > 1 && amountCents !== null) {
+            const assigned = deposits.reduce((s, d) => s + d.amountCents, 0);
+            if (assigned !== amountCents) errors.deposit = `The split adds up to ${money(assigned)}, but the amount is ${money(amountCents)}.`;
+            else if (new Set(deposits.map((d) => d.accountId)).size !== deposits.length) errors.deposit = "Each account can appear only once in a split.";
+        }
         form.querySelectorAll("[data-error-for]").forEach((ul) => { ul.innerHTML = errors[ul.dataset.errorFor] ? `<li>${esc(errors[ul.dataset.errorFor])}</li>` : ""; });
         if (Object.keys(errors).length) return;
         const record = {
             ...(editing || { id: newId(), createdAt: new Date().toISOString() }),
             date, description, amountCents, type: $("#f-type").value,
-            accountId: $("#f-account").value || null, notes: $("#f-notes").value.trim(),
+            accountId: deposits[0]?.accountId || null,
+            splits: deposits.length > 1 ? deposits : null,
+            notes: $("#f-notes").value.trim(),
         };
-        await store.save("earnings", record);
+        if (newAccounts.length) await store.saveMany({ accounts: newAccounts, earnings: [record] });
+        else await store.save("earnings", record);
         if (editing || then === "list") {
             toast(editing ? "Earning updated." : `Saved ${money(amountCents)} · ${description}.`);
             navigate(`/earnings?m=${monthOf(date)}`);
