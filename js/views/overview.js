@@ -4,7 +4,7 @@ import * as store from "../store.js";
 import { dashboard, earningsSummary, ASSET_KINDS, label } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, cssPct, today, monthOf, isMonth, shiftMonth,
-    fmtMonthLong, fmtMonthName, fmtMonthShort, fmtDay, fmtDayNoYear, fmtMonthYearShort, initials, timeAgo, plural, newId,
+    fmtMonthLong, fmtMonthName, fmtMonthShort, fmtMonthYear, fmtDay, fmtDayNoYear, fmtMonthYearShort, initials, timeAgo, plural, newId,
 } from "../util.js";
 import { donutHtml, bindDonuts, openSheet, closeSheet, toast } from "../ui.js";
 import { navigate, refreshQuotesIfStale } from "../app.js";
@@ -239,6 +239,13 @@ export function overviewView({ el, query, rerender }) {
         if (row) openCategory(row, month);
     }));
     bindDonuts(el);
+    // Mark a budget line paid (or undo) right from the card.
+    el.querySelectorAll("[data-paid]").forEach((b) => b.addEventListener("click", async () => {
+        const line = store.get("budgets", b.dataset.paid);
+        if (!line) return;
+        await store.save("budgets", { ...line, paid: !line.paid });
+        rerender();
+    }));
     // Change only the budget card's month, without jumping to the top of the page.
     el.querySelectorAll("[data-bm]").forEach((b) => b.addEventListener("click", () => {
         const bm = b.dataset.bm;
@@ -293,9 +300,13 @@ function budgetCard(d, month, pageMonth) {
         ${b.rows.map((r) => `
         <div class="cat-row">
             <span class="cat-name"><span class="swatch" style="background:${r.color}"></span><span>${esc(r.name)}${r.note ? `<span class="budget-line-note">${esc(r.note)}</span>` : ""}</span></span>
-            <span class="num"><strong class="${r.level === "high" ? "bad" : ""}">${money(r.spent, 0)}</strong> <span class="faint small">/ ${money(r.budget, 0)}</span></span>
-            <div class="bar"><span class="${r.level}" style="width:${cssPct(r.pct)}%"></span></div>
-            ${r.matched ? "" : `<span class="faint small" style="grid-column:1/-1">No transactions match “${esc(r.name)}” yet</span>`}
+            <span class="num budget-line-end">
+                <span><strong class="${r.level === "high" && !r.paid ? "bad" : ""}">${money(r.spent, 0)}</strong> <span class="faint small">/ ${money(r.budget, 0)}</span></span>
+                ${r.paid || r.spent < r.budget ? `<button type="button" class="paid-toggle ${r.paid ? "is-paid" : ""}" data-paid="${esc(r.id)}" aria-pressed="${r.paid}" title="${r.paid ? "Marked paid. Tap to undo" : "Count this line as paid"}">${r.paid ? "✓ Paid" : "Mark paid"}</button>` : ""}
+            </span>
+            <div class="bar"><span class="${r.paid ? "low" : r.level}" style="width:${cssPct(r.pct)}%"></span></div>
+            ${r.cardPaid ? `<span class="faint small" style="grid-column:1/-1">Includes ${money(r.cardPaid)} paid to ${esc(r.card.name)}</span>`
+                : !r.matched ? `<span class="faint small" style="grid-column:1/-1">${r.card ? `Payments to ${esc(r.card.name)} count here, or tap Mark paid` : `No transactions match “${esc(r.name)}” yet`}</span>` : ""}
         </div>`).join("")}
         ${b.rows.length && b.unbudgeted ? `<p class="faint small" style="margin:8px 0 0">${money(b.unbudgeted)} spent on things not in a budget line.</p>` : ""}
     </section>`;
@@ -322,7 +333,16 @@ function openCategory(row, month) {
                 </div>`).join("")}
             </div>
         </div>` : ""}
-        <h3 style="margin:8px 0">Last 12 months</h3>
+        <h3 style="margin:4px 0 4px">${esc(c.name)} transactions in ${esc(fmtMonthYear(month))} <span class="faint small">· ${plural(items.length, "item")}</span></h3>
+        ${items.length ? `<div class="sheet-tx-list">${items.map((t) => `
+            <button type="button" class="row" data-open-tx="${esc(t.id)}">
+                <span class="row-main">
+                    <span class="row-title" style="display:block">${esc(t.description)}</span>
+                    <span class="row-sub" style="display:block">${esc(fmtDayNoYear(t.date))}${t.subcategoryId ? ` · ${esc(subName(t.subcategoryId))}` : ""}${t.accountId ? ` · ${esc(accountName(t.accountId))}` : ""}${t.notes ? ` · ${esc(t.notes)}` : ""}</span>
+                </span>
+                <span class="row-end row-amount">${money(t.amountCents)}</span>
+            </button>`).join("")}</div>` : `<p class="muted small">No transactions in this category this month.</p>`}
+        <h3 style="margin:22px 0 8px">Last 12 months</h3>
         ${row.historyRows.map((r) => `
         <div class="hist-row">
             <span class="muted">${esc(fmtMonthYearShort(r.month))}</span>
@@ -332,16 +352,7 @@ function openCategory(row, month) {
         <div class="row" style="margin-top:6px"><strong class="row-main">12-month total</strong><strong class="num">${money(row.historyTotal)}</strong></div>
         <div class="form-actions">
             <button type="button" class="btn btn-secondary" data-view-tx>View All Transactions</button>
-        </div>
-        <h3 style="margin:18px 0 4px">Transactions in ${esc(fmtMonthLong(month))} <span class="faint small">· ${plural(items.length, "item")}</span></h3>
-        ${items.length ? `<div class="sheet-tx-list">${items.map((t) => `
-            <button type="button" class="row" data-open-tx="${esc(t.id)}">
-                <span class="row-main">
-                    <span class="row-title" style="display:block">${esc(t.description)}</span>
-                    <span class="row-sub" style="display:block">${esc(fmtDayNoYear(t.date))}${t.subcategoryId ? ` · ${esc(subName(t.subcategoryId))}` : ""}${t.accountId ? ` · ${esc(accountName(t.accountId))}` : ""}${t.notes ? ` · ${esc(t.notes)}` : ""}</span>
-                </span>
-                <span class="row-end row-amount">${money(t.amountCents)}</span>
-            </button>`).join("")}</div>` : `<p class="muted small">No transactions in this category this month.</p>`}`, (body) => {
+        </div>`, (body) => {
         body.querySelector("[data-view-tx]").addEventListener("click", () => {
             import("./activity.js").then(({ setActivityFilters }) => {
                 setActivityFilters({ category: c.id });

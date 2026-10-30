@@ -4,10 +4,9 @@
 import * as store from "../store.js";
 import {
     debtData, cardBalance, filterCardActivity, monthlyCardSummary, CARD_ACTIONS, LOAN_KINDS, label,
-    loanRow, allocateLoanPayment, lastLoanPayment, toMilli, milliToText, uniqueName, byDateDesc,
-} from "../calc.js";
+    loanRow, allocateLoanPayment, lastLoanPayment, toMilli, milliToText, uniqueName, byDateDesc, isCardPayment, paymentBudgetMonth } from "../calc.js";
 import {
-    esc, money, signedMoney, pct, cssPct, today, fmtDay, fmtDayNoYear, fmtDayFull, fmtDateTime, fmtMonthYear,
+    esc, money, signedMoney, pct, cssPct, today, fmtDay, fmtDayNoYear, fmtDayFull, fmtDateTime, fmtMonthYear, monthOf, shiftMonth,
     centsToInput, byName, newId, plural,
 } from "../util.js";
 import { formPageHtml, readForm, showErrors, parse, openSheet, closeSheet, toast, confirmAction } from "../ui.js";
@@ -116,7 +115,7 @@ export function cardsView({ el, rerender }) {
                     <button type="button" class="row" data-entry="${esc(e.id)}" aria-haspopup="dialog">
                         <span class="row-main">
                             <span class="row-title" style="display:block">${esc(cardName(e.cardId))}</span>
-                            <span class="row-sub" style="display:block">${esc(fmtDayNoYear(e.date))} · ${esc(e.description)}</span>
+                            <span class="row-sub" style="display:block">${esc(fmtDayNoYear(e.date))} · ${esc(e.description)}${e.budgetMonth ? ` · counts in ${esc(fmtMonthYear(e.budgetMonth))} budget` : ""}</span>
                         </span>
                         <span class="row-end row-amount ${e.changeCents < 0 ? "good" : ""}">${signedMoney(e.changeCents)}</span>
                     </button>
@@ -292,6 +291,25 @@ export function cardEditView({ el, params }) {
 }
 
 /** Record a charge, payment, refund or correction (CardActivityForm). */
+/**
+ * Which month's budget a card payment counts toward. In the last week of a
+ * month, when next month already has a budget, payments default to next month
+ * (bills paid with the end-of-month paycheck).
+ */
+function budgetMonthField(day, current = null) {
+    const thisMonth = monthOf(day);
+    const nextMonth = shiftMonth(thisMonth, 1);
+    const prevMonth = shiftMonth(thisMonth, -1);
+    const nextHasBudget = store.all("budgets").some((b) => b.month === nextMonth);
+    const value = current || (Number(day.slice(8, 10)) >= 24 && nextHasBudget ? nextMonth : thisMonth);
+    const months = [...new Set([prevMonth, thisMonth, nextMonth, value])].sort();
+    return {
+        name: "budgetMonth", label: "Counts toward budget", type: "select", value,
+        options: months.map((m) => [m, fmtMonthYear(m)]),
+        help: "Budget lines named after this card (e.g. “AMEX”) count the payment in that month.",
+    };
+}
+
 export function cardRecordView({ el, params }) {
     const cards = store.all("cards").sort(byName);
     if (!cards.length) {
@@ -308,6 +326,7 @@ export function cardRecordView({ el, params }) {
         { name: "action", label: "Action", type: "select", options: CARD_ACTIONS, value: "charge" },
         { name: "amount", label: "Amount (USD)", type: "money" },
         { name: "notes", label: "Notes", maxlength: 120, placeholder: "Optional" },
+        budgetMonthField(day),
     ];
     el.innerHTML = formPageHtml({
         title: fixed ? `Update ${fixed.name}` : "Record charge, payment, or adjustment",
@@ -315,6 +334,10 @@ export function cardRecordView({ el, params }) {
         fields, cancelHref: "#/cards",
     });
     const form = el.querySelector("[data-form]");
+    // "Counts toward budget" only matters for payments.
+    const syncBudgetField = () => { form.querySelector("[data-field=budgetMonth]").hidden = form.querySelector("[name=action]").value !== "payment"; };
+    form.querySelector("[name=action]").addEventListener("change", syncBudgetField);
+    syncBudgetField();
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const v = readForm(form);
@@ -333,6 +356,7 @@ export function cardRecordView({ el, params }) {
             id: newId(), cardId: card.id, date: date.value,
             description: label(CARD_ACTIONS, v.action) + (notes ? ` — ${notes}` : ""),
             changeCents: negative ? -amount.value : amount.value,
+            ...(v.action === "payment" && v.budgetMonth && v.budgetMonth !== monthOf(date.value) ? { budgetMonth: v.budgetMonth } : {}),
             createdAt: new Date().toISOString(),
         });
         toast(`${card.name} balance updated.`);
@@ -350,6 +374,7 @@ export function cardActivityEditView({ el, params }) {
         { name: "date", label: "Date", type: "date", value: entry.date },
         { name: "description", label: "Description", value: entry.description, maxlength: 200 },
         { name: "change", label: "Balance change (USD)", type: "money", value: entry.changeCents, help: "Positive amounts increase the balance. Negative amounts reduce it. For example: 50 for a purchase or -50 for a payment." },
+        ...(isCardPayment(entry) ? [budgetMonthField(entry.date, paymentBudgetMonth(entry))] : []),
     ];
     el.innerHTML = formPageHtml({ title: `Edit activity — ${card?.name || "card"}`, description: "Correct the date, description, or balance change.", fields, cancelHref: "#/cards", deleteLabel: "Delete" });
     const form = el.querySelector("[data-form]");
@@ -372,7 +397,9 @@ export function cardActivityEditView({ el, params }) {
         if (change.error) errors.change = change.error;
         else if (change.value === 0) errors.change = "Enter an amount other than zero.";
         if (showErrors(form, errors)) return;
-        await store.save("cardActivity", { ...entry, date: date.value, description: description.value, changeCents: change.value });
+        const { budgetMonth: _old, ...rest } = entry;
+        const budgetMonth = v.budgetMonth && v.budgetMonth !== monthOf(date.value) ? { budgetMonth: v.budgetMonth } : {};
+        await store.save("cardActivity", { ...rest, ...budgetMonth, date: date.value, description: description.value, changeCents: change.value });
         toast("Card activity updated. The balance was recalculated.");
         navigate("/cards");
     });

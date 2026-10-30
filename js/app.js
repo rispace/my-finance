@@ -19,7 +19,7 @@ import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEdit
 import { assetsView, assetFormView, assetValueView, stockFormView, stockBuyView, cashFormView } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.4.0";
+export const APP_VERSION = "1.5.0";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes

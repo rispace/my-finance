@@ -167,3 +167,32 @@ console.log("calc/import/csv unit tests passed");
     assert.deepEqual(depositsOf({ accountId: "x", amountCents: 5 }), [{ accountId: "x", amountCents: 5 }]);
     console.log("linked cash balances ✓");
 }
+
+// ---- budget lines: card payments and "Mark paid"
+{
+    const { budgetSummary } = await import("../js/calc.js");
+    const data = {
+        budgets: [
+            { id: "b1", month: "2026-11", name: "AMEX", amountCents: 5200 },
+            { id: "b2", month: "2026-11", name: "BoA", amountCents: 5000 },
+            { id: "b3", month: "2026-11", name: "Netflix", amountCents: 700, paid: true },
+            { id: "b4", month: "2026-11", name: "Groceries", amountCents: 50000 },
+        ],
+        cards: [{ id: "c1", name: "AMEX" }, { id: "c2", name: "Bank of America" }],
+        cardActivity: [
+            { id: "p1", cardId: "c1", date: "2026-10-30", budgetMonth: "2026-11", description: "Payment", changeCents: -5200 },
+            { id: "p2", cardId: "c2", date: "2026-10-30", description: "Payment", changeCents: -5000 },      // counts in October
+            { id: "p3", cardId: "c1", date: "2026-11-03", description: "New charge / purchase", changeCents: 900 },
+        ],
+        transactions: [{ id: "t1", date: "2026-11-02", categoryId: "food", description: "Groceries", amountCents: 12000 }],
+        categories: [], subcategories: [],
+    };
+    const b = budgetSummary(data, "2026-11", [], 12000, "2026-11-05");
+    const row = (n) => b.rows.find((r) => r.name === n);
+    assert.equal(row("AMEX").spent, 5200);
+    assert.equal(row("BoA").spent, 0);
+    assert.equal(row("Netflix").spent, 700);
+    assert.equal(row("Groceries").spent, 12000);
+    assert.equal(b.spent, 12000 + 5200 + 700);
+    console.log("budget card payments + paid ✓");
+}

@@ -25,18 +25,19 @@ export function budgetView({ el, query }) {
     }
     const overallValue = source.find((b) => !b.name);
     // Notes ("Paid 11/3") belong to one month, so a copied budget starts without them.
-    const rows = source.filter((b) => b.name).sort((a, b) => a.name.localeCompare(b.name)).map((b) => [b.name, centsToInput(b.amountCents), copyFrom ? "" : b.note || ""]);
+    const rows = source.filter((b) => b.name).sort((a, b) => a.name.localeCompare(b.name)).map((b) => [b.name, centsToInput(b.amountCents), copyFrom ? "" : b.note || "", copyFrom ? false : !!b.paid]);
     const suggestionNames = [...new Set([
         ...data.categories.map((c) => c.name),
         ...data.subcategories.map((s) => s.name),
         ...data.budgets.filter((b) => b.name).map((b) => b.name),
     ])].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
     const budgetMonths = [...new Set(data.budgets.map((b) => b.month))].sort().reverse();
-    const rowHtml = ([name, amount, note] = ["", "", ""]) => `
+    const rowHtml = ([name, amount, note, paid] = ["", "", "", false]) => `
         <div class="budget-row">
             <input type="text" name="name" value="${esc(name)}" placeholder="e.g. Groceries" list="budget-suggestions" maxlength="80" aria-label="Budget line name" autocomplete="off">
             <input type="text" inputmode="decimal" name="amount" value="${esc(amount)}" placeholder="Amount" aria-label="Amount">
             <input type="text" name="note" value="${esc(note)}" placeholder="Note, e.g. Paid Nov 3" maxlength="200" aria-label="Note" autocomplete="off" class="budget-note">
+            <label class="budget-paid" title="Count this line as paid even if nothing was recorded"><input type="checkbox" name="paid" ${paid ? "checked" : ""}> Paid</label>
             <button type="button" class="btn-ghost remove-row" aria-label="Remove row">×</button>
         </div>`;
     const prevMonth = shiftMonth(month, -1);
@@ -75,8 +76,8 @@ export function budgetView({ el, query }) {
             <h3 style="margin:18px 0 6px">Budget lines</h3>
             <p class="help" style="margin:0 0 12px">Type any name, e.g. <em>Groceries</em>, <em>Eating out</em>, <em>Netflix, YouTube</em>.
                 Spending is matched from your transactions by category, then subcategory, then words in the description or notes.
-                Use commas to combine several in one line. The note column is for anything you want to remember, like whether it’s paid.</p>
-            <div class="budget-row budget-head" aria-hidden="true"><span>Line</span><span>Amount</span><span class="budget-note">Note</span><span></span></div>
+                Use commas to combine several in one line. A line named after a credit card (e.g. <em>AMEX</em>, <em>BoA</em>) counts payments to that card. Tick <strong>Paid</strong> for anything you paid that isn’t recorded.</p>
+            <div class="budget-row budget-head" aria-hidden="true"><span>Line</span><span>Amount</span><span class="budget-note">Note</span><span class="budget-paid">Paid</span><span></span></div>
             <datalist id="budget-suggestions">${suggestionNames.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
             <div data-rows>${(rows.length ? rows : [["", ""]]).map(rowHtml).join("")}</div>
             <button type="button" class="btn-secondary btn-small" data-add-row style="margin:4px 0 18px">+ Add line</button>
@@ -119,10 +120,10 @@ export function budgetView({ el, query }) {
             keep.add(budgetId(month, ""));
             records.push({ id: budgetId(month, ""), month, name: "", amountCents: overall });
         }
-        for (const [name, amountCents, note] of wanted) {
+        for (const [name, amountCents, note, paid] of wanted) {
             const id = budgetId(month, name);
             keep.add(id);
-            records.push({ id, month, name, amountCents, note });
+            records.push({ id, month, name, amountCents, note, paid });
         }
         const removed = existing.filter((b) => !keep.has(b.id)).map((b) => ({ id: b.id, deleted: true }));
         await store.saveMany({ budgets: [...records, ...removed] });
@@ -160,7 +161,7 @@ export function budgetView({ el, query }) {
             if (amount === null) { errors.push(`Enter an amount for “${name}”.`); continue; }
             if (seen.has(fold(name))) { errors.push(`“${name}” is listed twice.`); continue; }
             seen.add(fold(name));
-            wanted.push([name, amount, note]);
+            wanted.push([name, amount, note, row.querySelector("[name=paid]").checked]);
         }
         const box = el.querySelector("[data-errors]");
         box.innerHTML = errors.map((e) => `<li>${esc(e)}</li>`).join("");

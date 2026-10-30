@@ -193,6 +193,26 @@ export function matchBudgetLine(name, expenses, categoriesById, subcategoriesByI
     return { matched: [...matched.values()], how };
 }
 
+/** "Bank of America" -> "boa" */
+const initialsOf = (name) => fold(name).split(/[^a-z0-9]+/).filter(Boolean).map((w) => w[0]).join("");
+
+/** A credit card a budget line is named after: "AMEX", "Chase", "BoA" (Bank of America). */
+export function cardForBudgetLine(name, cards) {
+    for (const term of budgetTerms(name)) {
+        const t = fold(term).trim();
+        if (t.length < 2) continue;
+        const card = cards.find((c) => fold(c.name) === t)
+            || (t.length >= 3 && cards.find((c) => fold(c.name).startsWith(`${t} `) || t.startsWith(`${fold(c.name)} `)))
+            || cards.find((c) => initialsOf(c.name).length > 1 && initialsOf(c.name) === t);
+        if (card) return card;
+    }
+    return null;
+}
+
+/** Card payments that belong to a month's budget (their own budget month, else their date). */
+export const isCardPayment = (a) => a.changeCents < 0 && /^payment\b/i.test(a.description || "");
+export const paymentBudgetMonth = (a) => a.budgetMonth || monthOf(a.date);
+
 export function budgetLinesFor(data, month) {
     return data.budgets.filter((b) => b.month === month);
 }
@@ -209,24 +229,42 @@ export function budgetSummary(data, month, categoryTotals, monthTotal, todayDay)
     const covered = new Set();
     const overallLine = lines.find((b) => !b.name);
     const named = lines.filter((b) => b.name).sort((a, b) => a.name.localeCompare(b.name));
+    const payments = (data.cardActivity || []).filter((a) => isCardPayment(a) && paymentBudgetMonth(a) === month);
     const rows = named.map((line, index) => {
         const { matched, how } = matchBudgetLine(line.name, expenses, categoriesById, subcategoriesById);
         matched.forEach((e) => covered.add(e.id));
-        const spent = sum(matched, (e) => e.amountCents);
+        const fromTransactions = sum(matched, (e) => e.amountCents);
+        // Paying a card named in the line ("AMEX", "BoA") counts too.
+        const card = cardForBudgetLine(line.name, data.cards || []);
+        const cardPaid = card ? -sum(payments.filter((a) => a.cardId === card.id), (a) => a.changeCents) : 0;
+        if (cardPaid) how.push("card payment");
+        let spent = fromTransactions + cardPaid;
+        // "Mark paid": counts the full budget even when nothing was recorded.
+        const manual = line.paid && spent < line.amountCents ? line.amountCents - spent : 0;
+        spent += manual;
         const firstTerm = fold(budgetTerms(line.name)[0] || "");
         return {
+            id: line.id,
             name: line.name,
             note: line.note || "",
+            paid: !!line.paid,
+            card,
+            cardPaid,
+            manual,
+            extra: cardPaid + manual, // spending that isn't in the transactions list
             budget: line.amountCents,
             spent,
             remaining: line.amountCents - spent,
             pct: line.amountCents ? (spent / line.amountCents) * 100 : (spent ? 100 : 0),
-            level: levelFor(spent, line.amountCents),
+            // A bill paid in full (marked, or by card payment) is done, not a warning.
+            level: (line.paid || (cardPaid && spent === line.amountCents)) ? "low" : levelFor(spent, line.amountCents),
             color: colorByName.get(firstTerm) || palette[index % palette.length],
-            matched: matched.length,
+            matched: matched.length + (cardPaid ? 1 : 0) + (manual ? 1 : 0),
             how,
         };
     }).sort((a, b) => b.pct - a.pct);
+    // Card payments and lines marked paid count toward the month as well.
+    monthTotal += sum(rows, (r) => r.extra);
 
     const linesSum = sum(rows, (r) => r.budget);
     const overall = overallLine ? overallLine.amountCents : linesSum;
