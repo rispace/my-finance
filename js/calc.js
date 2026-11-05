@@ -518,7 +518,8 @@ export function portfolio(data, now = Date.now()) {
     const quotes = new Map(data.quotes.map((q) => [q.id, q]));
     const cash = data.prefs.find((p) => p.id === INVESTMENT_CASH_ID);
     const cashBalance = cash ? cash.balanceCents || 0 : 0;
-    const holdings = [...data.stocks].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((stock) => {
+    // Fully sold holdings keep their record (and history) but drop out of the list.
+    const holdings = data.stocks.filter((s) => s.shares > 0).sort((a, b) => a.symbol.localeCompare(b.symbol)).map((stock) => {
         const quote = quotes.get(quoteKey(stock)) || null;
         const invested = Math.round(stock.shares * stock.averageCost * 100);
         const price = quote && quote.price != null ? quote.price : null;
@@ -539,6 +540,7 @@ export function portfolio(data, now = Date.now()) {
     const part = (list) => ({ holdings: list, value: sum(list, (h) => h.marketValue), invested: sum(list, (h) => h.invested) });
     return {
         holdings,
+        realizedCents: sum(data.stocks, (s) => sum(Array.isArray(s.purchases) ? s.purchases.filter((p) => p.kind === "sell") : [], (p) => p.gainCents || 0)),
         stocks: part(holdings.filter((h) => !isCrypto(h.stock))),
         crypto: part(holdings.filter((h) => isCrypto(h.stock))),
         totalInvested,
@@ -771,4 +773,67 @@ export function historySeries(records, range, todayDay) {
     const inRange = days.filter((r) => r.date >= start);
     const prior = days.filter((r) => r.date < start).pop();
     return [...(prior ? [prior] : []), ...inRange].map((r) => ({ t: new Date(`${r.date}T12:00:00`).getTime(), v: r.valueCents, day: r.date }));
+}
+
+// ------------------------------------------------------------------ selling
+
+/**
+ * Sell part or all of a holding at `price` per share/coin, minus optional
+ * fees (cents). The average cost of what's left doesn't change; the gain is
+ * proceeds minus the average cost of what was sold.
+ */
+export function sellFromHolding(holding, quantity, price, feesCents = 0) {
+    const round = (x, places) => Math.round(x * 10 ** places) / 10 ** places;
+    const left = round(holding.shares - quantity, 8);
+    const proceedsCents = Math.round(quantity * price * 100) - feesCents;
+    const costBasisCents = Math.round(quantity * holding.averageCost * 100);
+    return {
+        shares: Math.abs(left) < 1e-8 ? 0 : left,
+        proceedsCents,
+        costBasisCents,
+        gainCents: proceedsCents - costBasisCents,
+    };
+}
+
+/**
+ * Every recorded investment event, oldest first, for the CSV export:
+ * adds, buys, sells and manual edits, with the position after each one,
+ * followed by one "Current value" row per open holding.
+ */
+export function investmentHistory(data) {
+    const quotes = new Map(data.quotes.map((q) => [q.id, q]));
+    const rows = [];
+    const ACTION = { start: "Added", buy: "Bought", sell: "Sold", edit: "Set holding to" };
+    for (const h of [...data.stocks].sort((a, b) => a.symbol.localeCompare(b.symbol))) {
+        const type = isCrypto(h) ? "Crypto" : "Stock/ETF";
+        const base = { type, symbol: h.symbol, name: h.name || "" };
+        const log = Array.isArray(h.purchases) ? h.purchases : [];
+        let shares = 0;
+        let avg = 0;
+        if (!log.length) {
+            // Recorded before purchase history existed: one row for the position.
+            rows.push({ ...base, date: (h.createdAt || "").slice(0, 10), action: "Position recorded", quantity: h.shares, price: h.averageCost, amountCents: Math.round(h.shares * h.averageCost * 100), sharesAfter: h.shares, avgAfter: h.averageCost });
+        }
+        for (const p of log) {
+            if (p.kind === "start" || p.kind === "edit") { shares = p.shares; avg = p.price; }
+            else if (p.kind === "buy") { ({ shares, averageCost: avg } = combinePurchase(shares, avg, p.shares, p.price)); }
+            else if (p.kind === "sell") { shares = Math.max(0, Math.round((shares - p.shares) * 1e8) / 1e8); }
+            rows.push({
+                ...base, date: p.date, action: ACTION[p.kind] || "Bought", quantity: p.shares, price: p.price,
+                amountCents: p.kind === "sell" ? p.proceedsCents : Math.round(p.shares * p.price * 100),
+                feesCents: p.feesCents || 0,
+                costBasisCents: p.kind === "sell" ? p.costBasisCents : null,
+                gainCents: p.kind === "sell" ? p.gainCents : null,
+                sharesAfter: shares, avgAfter: avg,
+            });
+        }
+        if (h.shares > 0) {
+            const q = quotes.get(quoteKey(h));
+            const value = q?.price != null ? Math.round(h.shares * q.price * 100) : null;
+            const cost = Math.round(h.shares * h.averageCost * 100);
+            rows.push({ ...base, date: q?.date || "", action: "Current value", quantity: h.shares, price: q?.price ?? null, amountCents: value, costBasisCents: cost, gainCents: value === null ? null : value - cost, unrealized: true, sharesAfter: h.shares, avgAfter: h.averageCost });
+        }
+    }
+    const events = rows.filter((r) => !r.unrealized).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    return [...events, ...rows.filter((r) => r.unrealized)];
 }

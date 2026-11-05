@@ -5,8 +5,9 @@ import * as store from "../store.js";
 import {
     assetRows, portfolio, ASSET_KINDS, ASSET_FIELDS_BY_KIND, LOAN_KINDS, label, currentValuation,
     quoteId, quoteKey, isCrypto, INVESTMENT_CASH_ID, combinePurchase, BANK_ACCOUNT_KINDS, linkedBalance, ACCOUNT_KINDS,
-    HISTORY_RANGES, historySeries, historySnapshot, historyId,
+    HISTORY_RANGES, historySeries, historySnapshot, historyId, sellFromHolding, investmentHistory,
 } from "../calc.js";
+import { investmentsCsv, saveFile } from "../csv.js";
 import {
     esc, money, signedMoney, pct, signedPct, num, today, fmtDay, fmtDayNoYear, fmtMonthYear, timeAgo,
     centsToInput, toDecimal, byName, newId, plural,
@@ -129,6 +130,7 @@ export function assetsView({ el, rerender }) {
             <div class="stat-label">Gain / loss</div>
             <div class="stat-value ${gainClass(folio.gainLoss)}">${signedMoney(folio.gainLoss)}</div>
             <div class="stat-sub">${folio.gainPct !== null ? `<span class="pill ${folio.gainPct >= 0 ? "gain" : "loss"}">${signedPct(folio.gainPct)}</span> unrealized` : "Unrealized"}</div>
+            ${folio.realizedCents ? `<div class="stat-sub">Realized from sales: <strong class="${gainClass(folio.realizedCents)}">${signedMoney(folio.realizedCents)}</strong></div>` : ""}
         </section>
         <section class="card stat">
             <div class="stat-label">Cost basis</div>
@@ -157,6 +159,15 @@ export function assetsView({ el, rerender }) {
         ${folio.crypto.holdings.length ? `<p class="faint small" style="margin:12px 0 0">Crypto prices by <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</p>` : ""}
     </section>
 
+    ${data.stocks.length ? `
+    <section class="card export-history" style="margin-top:16px">
+        <div>
+            <strong>Investment history</strong>
+            <div class="muted small">Every add, buy, sell and edit for stocks and crypto, with realized gains on sales and each holding’s current value and unrealized gain.</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-small" data-export-investments>Export CSV</button>
+    </section>` : ""}
+
     ${folio.hasFailedRefresh ? `
     <p class="notice small" style="margin:14px 0 0">
         Some prices could not be updated. The last saved price is shown.
@@ -175,6 +186,9 @@ export function assetsView({ el, rerender }) {
         if (!result.updated && !result.errors.length) toast("All prices are already up to date.");
         await recordPortfolioHistory();
         rerender();
+    });
+    el.querySelector("[data-export-investments]")?.addEventListener("click", () => {
+        saveFile(`investments-${today()}.csv`, investmentsCsv(investmentHistory(store.snapshot())));
     });
     if (folio.needsRefresh) refreshQuotesIfStale();
     else recordPortfolioHistory();
@@ -451,7 +465,7 @@ export function cashFormView({ el }) {
 
 
 const purchasesOf = (stock) => (Array.isArray(stock.purchases) ? stock.purchases : []);
-const PURCHASE_KIND = { start: "Added", buy: "Bought", edit: "Set to" };
+const PURCHASE_KIND = { start: "Added", buy: "Bought", edit: "Set to", sell: "Sold" };
 
 function purchaseHistoryHtml(stock) {
     const list = purchasesOf(stock).slice().reverse();
@@ -459,8 +473,8 @@ function purchaseHistoryHtml(stock) {
     return `<div class="field"><label>History</label>
         <ul class="list purchase-list">${list.map((p) => `
             <li class="row"><span class="row-main"><span class="row-title">${esc(PURCHASE_KIND[p.kind] || "Bought")} ${num(p.shares, 6)} ${p.kind === "edit" ? "shares" : `share${p.shares === 1 ? "" : "s"}`} @ ${money(Math.round(p.price * 100))}</span>
-                <span class="row-sub">${esc(fmtDay(p.date))}</span></span>
-                <span class="row-end num">${p.kind === "edit" ? "" : money(Math.round(p.shares * p.price * 100))}</span></li>`).join("")}
+                <span class="row-sub">${esc(fmtDay(p.date))}${p.kind === "sell" ? ` · <span class="${gainClass(p.gainCents)}">${signedMoney(p.gainCents)} ${p.gainCents >= 0 ? "profit" : "loss"}</span>` : ""}</span></span>
+                <span class="row-end num">${p.kind === "edit" ? "" : p.kind === "sell" ? money(p.proceedsCents) : money(Math.round(p.shares * p.price * 100))}</span></li>`).join("")}
         </ul></div>`;
 }
 
@@ -546,7 +560,7 @@ function holdingsHtml(list, quoteStatus) {
                     <td class="num">${fmtPrice(h.stock.averageCost)}</td>
                     <td class="num ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)}<div class="small">${signedPct(h.gainPct)}</div></td>
                     <td class="num">${pct(h.weight, 0)}</td>
-                    <td class="num" style="white-space:nowrap"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
+                    <td class="num" style="white-space:nowrap"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/sell">Sell</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
                 </tr>`).join("")}
                 </tbody>
             </table>
@@ -570,6 +584,7 @@ function holdingsHtml(list, quoteStatus) {
             </div>
             <div class="cc-actions" style="margin-top:8px">
                 <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a>
+                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/sell">Sell</a>
                 <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a>
             </div>
         </div>`).join("")}`;
@@ -770,3 +785,79 @@ export function cryptoFormView({ el }) {
     });
 }
 const toastShownForFailure = (saved) => !!store.get("quotes", quoteKey(saved))?.failed;
+
+// ------------------------------------------------------------------ selling
+
+/** Sell part or all of a stock or coin (#/stock/:id/sell). */
+export function stockSellView({ el, params }) {
+    const stock = store.get("stocks", params.id);
+    if (!stock || !(stock.shares > 0)) return notFound(el, "holding");
+    const crypto = isCrypto(stock);
+    const day = today();
+    const quote = store.get("quotes", quoteKey(stock));
+    const unit = crypto ? stock.symbol : stock.shares === 1 ? "share" : "shares";
+    el.innerHTML = formPageHtml({
+        title: `Sell ${stock.symbol}`,
+        description: `You have <strong>${num(stock.shares, 8)} ${esc(unit)}</strong> at ${fmtPrice(stock.averageCost)} average${quote?.price ? ` · now ${fmtPrice(quote.price)}` : ""}.`,
+        fields: [
+            { name: "shares", label: crypto ? "Amount sold" : "Shares sold", type: "decimal" },
+            { name: "price", label: crypto ? "Price per coin" : "Price per share", type: "decimal", value: quote?.price ? String(quote.price) : "" },
+            { name: "date", label: "Date", type: "date", value: day },
+            { name: "fees", label: "Fees (optional)", type: "money", value: "", placeholder: "0.00" },
+            { name: "toCash", label: "Add the money to uninvested cash", type: "checkbox", value: true },
+        ],
+        afterFields: `<div class="notice small" data-preview hidden></div>`,
+        submitLabel: "Record sale",
+        cancelHref: "#/assets",
+    });
+    const form = el.querySelector("[data-form]");
+    form.querySelector("[name=shares]").insertAdjacentHTML("afterend", `<button type="button" class="link small" data-all style="margin-top:6px">Sell all (${num(stock.shares, 8)})</button>`);
+    form.querySelector("[data-all]").addEventListener("click", () => {
+        form.querySelector("[name=shares]").value = String(stock.shares);
+        form.dispatchEvent(new Event("input"));
+    });
+    const preview = form.querySelector("[data-preview]");
+    const read = () => {
+        const v = readForm(form);
+        const fees = String(v.fees || "").trim() ? parse.money(v.fees, { required: false }) : { value: 0 };
+        return { shares: toDecimal(v.shares), price: toDecimal(v.price), date: v.date, fees, toCash: !!v.toCash };
+    };
+    form.addEventListener("input", () => {
+        const { shares, price, fees } = read();
+        const ok = shares > 0 && shares <= stock.shares + 1e-9 && price !== null && price >= 0 && !fees.error;
+        preview.hidden = !ok;
+        if (!ok) return;
+        const r = sellFromHolding(stock, Math.min(shares, stock.shares), price, fees.value || 0);
+        preview.innerHTML = `You get <strong>${money(r.proceedsCents)}</strong> · cost basis ${money(r.costBasisCents)} ·
+            <strong class="${gainClass(r.gainCents)}">${signedMoney(r.gainCents)} ${r.gainCents >= 0 ? "profit" : "loss"}</strong><br>
+            ${r.shares > 0 ? `${num(r.shares, 8)} ${crypto ? esc(stock.symbol) : "shares"} left at ${fmtPrice(stock.averageCost)} average.` : "This sells your whole position."}`;
+    });
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const { shares, price, date, fees, toCash } = read();
+        const errors = {};
+        if (shares === null || shares <= 0) errors.shares = "Enter how much you sold (more than 0).";
+        else if (shares > stock.shares + 1e-9) errors.shares = `You only have ${num(stock.shares, 8)}.`;
+        if (price === null || price < 0) errors.price = "Enter the sale price (0 or more).";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) errors.date = "Pick a date.";
+        if (fees.error) errors.fees = fees.error;
+        if (showErrors(form, errors)) return;
+        const current = store.get("stocks", stock.id) || stock;
+        const qty = Math.min(shares, current.shares);
+        const r = sellFromHolding(current, qty, price, fees.value || 0);
+        const changes = {
+            stocks: [{ ...current, shares: r.shares, purchases: [...purchasesOf(current), {
+                date, shares: qty, price, kind: "sell", feesCents: fees.value || 0,
+                proceedsCents: r.proceedsCents, costBasisCents: r.costBasisCents, gainCents: r.gainCents,
+            }] }],
+        };
+        if (toCash) {
+            const cash = store.get("prefs", INVESTMENT_CASH_ID);
+            changes.prefs = [{ ...(cash || {}), id: INVESTMENT_CASH_ID, balanceCents: (cash?.balanceCents || 0) + r.proceedsCents }];
+        }
+        await store.saveMany(changes);
+        toast(`Sold ${num(qty, 8)} ${stock.symbol}: ${signedMoney(r.gainCents)} ${r.gainCents >= 0 ? "profit" : "loss"}.${toCash ? ` ${money(r.proceedsCents)} added to cash.` : ""}`);
+        await recordPortfolioHistory();
+        navigate("/assets");
+    });
+}

@@ -71,7 +71,7 @@ export async function refreshSymbol(symbol) {
 /** Refresh every stale holding (or all with force). Returns { updated, failed, errors }. */
 export async function refreshAll({ force = false } = {}) {
     const now = Date.now();
-    const due = store.all("stocks").filter((s) => {
+    const due = store.all("stocks").filter((s) => s.shares > 0).filter((s) => {
         const q = store.get("quotes", quoteKey(s));
         return force || (isStale(q, now) && !recentlyAttempted(q, now));
     });

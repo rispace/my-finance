@@ -218,3 +218,20 @@ export function buildEarningsCsvImport(text, live, { skipDuplicates = true, newI
     });
     return { changes, created, skipped, errors };
 }
+
+// ------------------------------------------------------------ investments
+
+export const INVESTMENT_HEADERS = ["Date", "Type", "Symbol", "Name", "Action", "Quantity", "Price (USD)", "Amount (USD)", "Fees (USD)", "Cost basis (USD)", "Gain / loss (USD)", "Gain kind", "Holding after", "Average cost after (USD)"];
+
+/** investmentHistory() rows -> CSV text. */
+export function investmentsCsv(rows) {
+    // Losses go out as numbers so spreadsheets don't mistake "-20.19" for a formula guard case.
+    const dollars = (c) => (c === null || c === undefined ? "" : c < 0 ? Number(centsToInput(c)) : centsToInput(c));
+    const plain = (n) => (n === null || n === undefined ? "" : String(Number(n.toFixed ? n.toFixed(8) : n)));
+    return toCsv(INVESTMENT_HEADERS, rows.map((r) => [
+        r.date || "", r.type, r.symbol, r.name, r.action, plain(r.quantity), plain(r.price), dollars(r.amountCents),
+        r.feesCents ? dollars(r.feesCents) : "", dollars(r.costBasisCents), dollars(r.gainCents),
+        r.gainCents === null || r.gainCents === undefined ? "" : r.unrealized ? "Unrealized" : "Realized",
+        plain(r.sharesAfter), plain(r.avgAfter),
+    ]));
+}

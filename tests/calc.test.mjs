@@ -238,3 +238,35 @@ console.log("calc/import/csv unit tests passed");
     assert.deepEqual(w.map((p) => p.day), ["2026-10-20", "2026-11-04", "2026-11-05"]);
     console.log("crypto + portfolio history ✓");
 }
+
+// ---- selling and investment history export
+{
+    const { sellFromHolding, investmentHistory, portfolio, combinePurchase } = await import("../js/calc.js");
+    const { investmentsCsv } = await import("../js/csv.js");
+    // 4 @ $26 avg; sell 1 @ $30 with $1 fee -> proceeds 29, basis 26, gain 3
+    const r = sellFromHolding({ shares: 4, averageCost: 26 }, 1, 30, 100);
+    assert.deepEqual(r, { shares: 3, proceedsCents: 2900, costBasisCents: 2600, gainCents: 300 });
+    const all = sellFromHolding({ shares: 0.3, averageCost: 100 }, 0.3, 90);
+    assert.equal(all.shares, 0);
+    assert.equal(all.gainCents, -300);
+    const jets = { id: "s1", symbol: "JETS", shares: 3, averageCost: 26, purchases: [
+        { date: "2026-10-01", shares: 2, price: 25, kind: "start" },
+        { date: "2026-10-15", shares: 2, price: 27, kind: "buy" },
+        { date: "2026-11-02", shares: 1, price: 30, kind: "sell", feesCents: 100, proceedsCents: 2900, costBasisCents: 2600, gainCents: 300 },
+    ] };
+    const gone = { id: "s2", symbol: "OLD", shares: 0, averageCost: 10, purchases: [{ date: "2026-09-01", shares: 5, price: 10, kind: "start" }, { date: "2026-09-20", shares: 5, price: 12, kind: "sell", proceedsCents: 6000, costBasisCents: 5000, gainCents: 1000 }] };
+    const data = { stocks: [jets, gone], quotes: [{ id: "q-JETS", price: 28, date: "2026-11-05", checkedAt: Date.now() }], prefs: [] };
+    const f = portfolio(data);
+    assert.equal(f.holdings.length, 1);                 // sold-out holding hidden
+    assert.equal(f.realizedCents, 1300);
+    const rows = investmentHistory(data);
+    assert.deepEqual(rows.map((x) => x.action), ["Added", "Sold", "Added", "Bought", "Sold", "Current value"]);
+    const sold = rows.find((x) => x.symbol === "JETS" && x.action === "Sold");
+    assert.equal(sold.sharesAfter, 3); assert.equal(sold.avgAfter, 26);
+    const cur = rows[rows.length - 1];
+    assert.equal(cur.amountCents, 8400); assert.equal(cur.gainCents, 600); assert.ok(cur.unrealized);
+    const csv = investmentsCsv(rows);
+    assert.ok(csv.includes("2026-11-02,Stock/ETF,JETS,,Sold,1,30,29.00,1.00,26.00,3.00,Realized,3,26"));
+    assert.ok(csv.includes("Current value,3,28,84.00,,78.00,6.00,Unrealized"));
+    console.log("selling + investment export ✓");
+}
