@@ -196,3 +196,45 @@ console.log("calc/import/csv unit tests passed");
     assert.equal(b.spent, 12000 + 5200 + 700);
     console.log("budget card payments + paid ✓");
 }
+
+// ---- crypto holdings and portfolio history
+{
+    const { portfolio, quoteKey, historySnapshot, historySeries } = await import("../js/calc.js");
+    const data = {
+        stocks: [
+            { id: "s1", symbol: "AAPL", shares: 2, averageCost: 100 },
+            { id: "c1", assetType: "crypto", coinId: "bitcoin", symbol: "BTC", shares: 0.01, averageCost: 50000 },
+        ],
+        quotes: [
+            { id: "q-AAPL", price: 150, checkedAt: Date.now() },
+            { id: "q-cg-bitcoin", price: 60000, checkedAt: Date.now() },
+        ],
+        prefs: [{ id: "investment-cash", balanceCents: 1000 }],
+    };
+    assert.equal(quoteKey(data.stocks[1]), "q-cg-bitcoin");
+    const f = portfolio(data);
+    assert.equal(f.stocks.value, 30000);
+    assert.equal(f.crypto.value, 60000);
+    assert.equal(f.totalValue, 30000 + 60000 + 1000);
+    // snapshot: first save, then unchanged within 10 minutes -> null
+    const t = Date.UTC(2026, 10, 5, 15);
+    const s1 = historySnapshot(f, null, "2026-11-05", t);
+    assert.equal(s1.valueCents, 91000);
+    assert.equal(s1.costCents, 20000 + 50000 + 1000);
+    assert.equal(historySnapshot(f, s1, "2026-11-05", t + 60000), null);
+    const s2 = historySnapshot(f, s1, "2026-11-05", t + 11 * 60000);
+    assert.equal(s2.points.length, 2);
+    // incomplete prices -> no snapshot
+    assert.equal(historySnapshot(portfolio({ ...data, quotes: [] }), null, "2026-11-05", t), null);
+    // series
+    const recs = ["2026-09-30", "2026-10-10", "2026-10-20", "2026-11-04", "2026-11-05"].map((d, i) => ({ date: d, valueCents: 1000 * (i + 1) }));
+    recs[4].points = [[t, 5000], [t + 600000, 5100]];
+    const m = historySeries(recs, "1M", "2026-11-05");
+    assert.deepEqual(m.map((p) => p.day), ["2026-09-30", "2026-10-10", "2026-10-20", "2026-11-04", "2026-11-05"]); // includes the day before the range
+    const d1 = historySeries(recs, "1D", "2026-11-05");
+    assert.equal(d1[0].v, 4000); // yesterday's close first
+    assert.equal(d1.length, 3);
+    const w = historySeries(recs, "1W", "2026-11-05");
+    assert.deepEqual(w.map((p) => p.day), ["2026-10-20", "2026-11-04", "2026-11-05"]);
+    console.log("crypto + portfolio history ✓");
+}

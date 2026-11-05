@@ -16,10 +16,10 @@ import { activityView, transactionFormView } from "./views/activity.js";
 import { budgetView } from "./views/budget.js";
 import { earningsView, earningFormView, earningsImportView } from "./views/earnings.js";
 import { cardsView, cardFormView, cardEditView, cardRecordView, cardActivityEditView, loansView, loanDetailView, loanFormView, loanPaymentView } from "./views/debt.js";
-import { assetsView, assetFormView, assetValueView, stockFormView, stockBuyView, cashFormView } from "./views/assets.js";
+import { assetsView, assetFormView, assetValueView, stockFormView, stockBuyView, cashFormView, cryptoFormView, recordPortfolioHistory } from "./views/assets.js";
 import { settingsView, categoryFormView, categoryDeleteView, subcategoryFormView, subcategoryDeleteView, accountFormView, csvImportView, finnhubView } from "./views/settings.js";
 
-export const APP_VERSION = "1.5.0";
+export const APP_VERSION = "1.6.0";
 const SYNC_DELAY_MS = 2000;
 
 // ------------------------------------------------------------- routes
@@ -52,6 +52,7 @@ const ROUTES = [
     ["stock/new", stockFormView, "assets", true],
     ["stock/:id", stockFormView, "assets", true],
     ["stock/:id/buy", stockBuyView, "assets", true],
+    ["crypto/new", cryptoFormView, "assets", true],
     ["cash", cashFormView, "assets", true],
     ["settings", settingsView, "settings"],
     ["category/new", categoryFormView, "settings", true],
@@ -252,10 +253,11 @@ document.querySelectorAll("[data-sync-chip]").forEach((el) => el.addEventListene
 let refreshing = false;
 /** Refresh stale prices in the background (Overview and Assets call this). */
 export async function refreshQuotesIfStale() {
-    if (refreshing || !navigator.onLine || !quotes.apiKey() || !store.all("stocks").length) return;
+    if (refreshing || !navigator.onLine || !store.all("stocks").length) return;
     refreshing = true;
     try {
         const result = await quotes.refreshAll();
+        await recordPortfolioHistory();
         if (result.updated || result.failed) {
             if (route && !route.isForm && (route.nav === "assets" || route.nav === "overview")) render({ keepScroll: true });
         }

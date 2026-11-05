@@ -483,6 +483,11 @@ export function allocateLoanPayment(loan, payments, input, todayDay) {
 // ------------------------------------------------------------ investments
 
 export const quoteId = (symbol) => `q-${symbol}`;
+/** Crypto holdings are stocks records with assetType "crypto" and a CoinGecko coin id. */
+export const isCrypto = (holding) => holding?.assetType === "crypto";
+export const cryptoQuoteId = (coinId) => `q-cg-${coinId}`;
+/** Where a holding's price is stored in the "quotes" collection. */
+export const quoteKey = (holding) => (isCrypto(holding) ? cryptoQuoteId(holding.coinId) : quoteId(holding.symbol));
 export const INVESTMENT_CASH_ID = "investment-cash";
 export const FINNHUB_PREF_ID = "finnhub";
 export const CURRENCY_PREF_ID = "currency";
@@ -514,7 +519,7 @@ export function portfolio(data, now = Date.now()) {
     const cash = data.prefs.find((p) => p.id === INVESTMENT_CASH_ID);
     const cashBalance = cash ? cash.balanceCents || 0 : 0;
     const holdings = [...data.stocks].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((stock) => {
-        const quote = quotes.get(quoteId(stock.symbol)) || null;
+        const quote = quotes.get(quoteKey(stock)) || null;
         const invested = Math.round(stock.shares * stock.averageCost * 100);
         const price = quote && quote.price != null ? quote.price : null;
         const marketValue = price === null ? null : Math.round(stock.shares * price * 100);
@@ -531,8 +536,11 @@ export function portfolio(data, now = Date.now()) {
         h.gainPct = h.gainLoss !== null && h.invested ? (h.gainLoss / h.invested) * 100 : null;
     }
     const checked = holdings.map((h) => h.quote?.checkedAt).filter(Boolean);
+    const part = (list) => ({ holdings: list, value: sum(list, (h) => h.marketValue), invested: sum(list, (h) => h.invested) });
     return {
         holdings,
+        stocks: part(holdings.filter((h) => !isCrypto(h.stock))),
+        crypto: part(holdings.filter((h) => isCrypto(h.stock))),
         totalInvested,
         pricedValue,
         missingQuotes,
@@ -706,4 +714,61 @@ export function earningsSummary(data, month, todayDay) {
         monthEnd: `${month}-${String(daysInMonth(month)).padStart(2, "0")}`,
         monthOptions: monthOptions([...data.earnings, ...data.transactions], month, monthOf(todayDay)),
     };
+}
+
+// ------------------------------------------------------- portfolio history
+//
+// Free price services don't offer past prices for stocks, so the chart is
+// built from snapshots: each day the app is open with all prices loaded, it
+// saves that day's portfolio value (one record per day, synced like
+// everything else) plus a few intraday points for the 1D view.
+
+export const HISTORY_RANGES = [["1D", "Today"], ["1W", "Past week"], ["1M", "Past month"], ["3M", "Past 3 months"], ["YTD", "Year to date"], ["1Y", "Past year"], ["ALL", "All time"]];
+export const historyId = (day) => `ph-${day}`;
+const POINT_GAP_MS = 10 * 60 * 1000;
+const MAX_POINTS = 96;
+
+/**
+ * The record to save for today, or null when nothing changed.
+ * folio: portfolio(); existing: today's saved record (if any).
+ */
+export function historySnapshot(folio, existing, day, now = Date.now()) {
+    if (!folio.complete || (!folio.holdings.length && !folio.cashBalance)) return null;
+    const valueCents = folio.totalValue;
+    const costCents = folio.totalInvested + folio.cashBalance;
+    const points = Array.isArray(existing?.points) ? [...existing.points] : [];
+    const last = points[points.length - 1];
+    if (!last || now - last[0] >= POINT_GAP_MS) points.push([now, valueCents]);
+    else if (last[1] !== valueCents) points[points.length - 1] = [last[0], valueCents];
+    while (points.length > MAX_POINTS) points.shift();
+    const same = existing && existing.valueCents === valueCents && existing.costCents === costCents && existing.points?.length === points.length;
+    if (same) return null;
+    return { id: historyId(day), date: day, valueCents, costCents, points };
+}
+
+/** Chart points [{ t, v, day }] for a range, oldest first. */
+export function historySeries(records, range, todayDay) {
+    const days = [...records].filter((r) => r && r.date && Number.isFinite(r.valueCents)).sort((a, b) => a.date.localeCompare(b.date));
+    if (range === "1D") {
+        const today = days.find((r) => r.date === todayDay);
+        const pts = (today?.points || []).map(([t, v]) => ({ t, v, day: todayDay, intraday: true }));
+        // Start the day from yesterday's close when there is one.
+        const before = days.filter((r) => r.date < todayDay).pop();
+        if (before && pts.length) pts.unshift({ t: pts[0].t - 1, v: before.valueCents, day: before.date, intraday: true, previousClose: true });
+        return pts;
+    }
+    const start = (() => {
+        const d = new Date(`${todayDay}T12:00:00`);
+        if (range === "1W") d.setDate(d.getDate() - 7);
+        else if (range === "1M") d.setMonth(d.getMonth() - 1);
+        else if (range === "3M") d.setMonth(d.getMonth() - 3);
+        else if (range === "YTD") return `${todayDay.slice(0, 4)}-01-01`;
+        else if (range === "1Y") d.setFullYear(d.getFullYear() - 1);
+        else return "0000-00-00";
+        return d.toISOString().slice(0, 10);
+    })();
+    // Include the last day before the range so the change is measured from it.
+    const inRange = days.filter((r) => r.date >= start);
+    const prior = days.filter((r) => r.date < start).pop();
+    return [...(prior ? [prior] : []), ...inRange].map((r) => ({ t: new Date(`${r.date}T12:00:00`).getTime(), v: r.valueCents, day: r.date }));
 }

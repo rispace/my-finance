@@ -4,7 +4,8 @@
 import * as store from "../store.js";
 import {
     assetRows, portfolio, ASSET_KINDS, ASSET_FIELDS_BY_KIND, LOAN_KINDS, label, currentValuation,
-    quoteId, INVESTMENT_CASH_ID, combinePurchase, BANK_ACCOUNT_KINDS, linkedBalance, ACCOUNT_KINDS,
+    quoteId, quoteKey, isCrypto, INVESTMENT_CASH_ID, combinePurchase, BANK_ACCOUNT_KINDS, linkedBalance, ACCOUNT_KINDS,
+    HISTORY_RANGES, historySeries, historySnapshot, historyId,
 } from "../calc.js";
 import {
     esc, money, signedMoney, pct, signedPct, num, today, fmtDay, fmtDayNoYear, fmtMonthYear, timeAgo,
@@ -13,6 +14,8 @@ import {
 import { formPageHtml, fieldHtml, readForm, showErrors, parse, toast, confirmAction } from "../ui.js";
 import { navigate, refreshQuotesIfStale } from "../app.js";
 import * as quotes from "../quotes.js";
+
+const gainClass = (v) => (v === null ? "" : v >= 0 ? "good" : "bad");
 
 const notFound = (el, what) => {
     el.innerHTML = `<section class="card"><div class="empty"><strong>That ${what} no longer exists</strong><a href="#/assets">Back to assets</a></div></section>`;
@@ -29,7 +32,6 @@ export function assetsView({ el, rerender }) {
     const hasKey = !!quotes.apiKey();
     const quoteStatus = (h) => (h.quote?.failed ? "Update failed"
         : h.quote?.date ? `${esc(h.quote.source || "Price")} · ${esc(fmtDayNoYear(h.quote.date))}` : "No price yet");
-    const gainClass = (v) => (v === null ? "" : v >= 0 ? "good" : "bad");
 
     el.innerHTML = `
     <div class="page-head">
@@ -98,17 +100,18 @@ export function assetsView({ el, rerender }) {
     <div class="page-head" style="margin:30px 0 14px">
         <div>
             <h2 class="section-title" style="margin:0">Investments</h2>
-            <p class="muted small" style="margin-top:4px">${folio.lastChecked ? `Prices updated ${esc(timeAgo(folio.lastChecked))}${hasKey ? " · Finnhub" : ""}` : folio.holdings.length ? "Prices not loaded yet" : "Track stocks and ETFs at live prices"}</p>
+            <p class="muted small" style="margin-top:4px">${folio.lastChecked ? `Prices updated ${esc(timeAgo(folio.lastChecked))}` : folio.holdings.length ? "Prices not loaded yet" : "Track stocks, ETFs and crypto at live prices"}</p>
         </div>
         <div class="page-actions">
             ${folio.holdings.length ? `<button type="button" class="btn-secondary btn-small" data-refresh><svg width="16" height="16"><use href="#i-refresh"/></svg>Refresh prices</button>` : ""}
-            <a class="btn btn-small" href="#/stock/new"><svg width="16" height="16"><use href="#i-plus"/></svg>Add holding</a>
+            <a class="btn btn-small" href="#/stock/new"><svg width="16" height="16"><use href="#i-plus"/></svg>Add stock</a>
+            <a class="btn btn-secondary btn-small" href="#/crypto/new"><svg width="16" height="16"><use href="#i-plus"/></svg>Add crypto</a>
         </div>
     </div>
 
-    ${hasKey ? "" : `
+    ${hasKey || !folio.stocks.holdings.length ? "" : `
     <div class="notice">
-        <strong>Live prices are turned off.</strong> The app needs a free price-data key to update your holdings.
+        <strong>Live stock prices are turned off.</strong> The app needs a free price-data key to update your stocks (crypto prices need no key).
         <ol style="margin:8px 0 0;padding-left:20px">
             <li>Create a free account at <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a> and copy your API key.</li>
             <li><a href="#/finnhub">Paste it in Settings → Stock prices</a>. It’s saved with your data in your own Google Drive.</li>
@@ -139,63 +142,28 @@ export function assetsView({ el, rerender }) {
         </section>
     </div>
 
+    ${folio.holdings.length || folio.cashRecorded ? historyCardHtml() : ""}
+
     <section class="card" style="margin-top:16px">
-        <div class="card-head"><h2>Holdings</h2></div>
-        ${folio.holdings.length ? `
-        <div class="table-wrap holdings-table">
-            <table>
-                <thead><tr>
-                    <th>Symbol</th><th class="num">Shares</th><th class="num">Price</th><th class="num">Value</th>
-                    <th class="num">Avg cost</th><th class="num">Gain / loss</th><th class="num">Weight</th><th></th>
-                </tr></thead>
-                <tbody>
-                ${folio.holdings.map((h) => `
-                <tr>
-                    <td>
-                        <div class="ticker">${esc(h.stock.symbol)}</div>
-                        <div class="small ${h.quote?.failed ? "bad" : "faint"}" title="${esc(h.quote?.error || "")}">${quoteStatus(h)}</div>
-                    </td>
-                    <td class="num">${num(h.stock.shares, 6)}</td>
-                    <td class="num">${h.price === null ? "—" : money(Math.round(h.price * 100))}</td>
-                    <td class="num"><strong>${money(h.marketValue)}</strong></td>
-                    <td class="num">${money(Math.round(h.stock.averageCost * 100))}</td>
-                    <td class="num ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)}<div class="small">${signedPct(h.gainPct)}</div></td>
-                    <td class="num">${pct(h.weight, 0)}</td>
-                    <td class="num" style="white-space:nowrap"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
-                </tr>`).join("")}
-                </tbody>
-            </table>
-        </div>
-        ${folio.holdings.map((h) => `
-        <div class="holding-card">
-            <div class="holding-top">
-                <div>
-                    <div class="ticker">${esc(h.stock.symbol)}</div>
-                    <div class="small ${h.quote?.failed ? "bad" : "faint"}">${h.quote?.failed ? "Update failed" : h.quote?.date ? `${money(Math.round(h.price * 100))} · ${esc(fmtDayNoYear(h.quote.date))}` : "No price yet"}</div>
-                </div>
-                <div style="text-align:right">
-                    <div class="row-amount">${money(h.marketValue)}</div>
-                    <div class="small ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)} (${signedPct(h.gainPct)})</div>
-                </div>
-            </div>
-            <div class="holding-meta">
-                <div><span>Shares</span>${num(h.stock.shares, 4)}</div>
-                <div><span>Avg cost</span>${money(Math.round(h.stock.averageCost * 100))}</div>
-                <div><span>Weight</span>${pct(h.weight, 0)}</div>
-            </div>
-            <div class="cc-actions" style="margin-top:8px">
-                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a>
-                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a>
-            </div>
-        </div>`).join("")}
-        ${folio.hasFailedRefresh ? `
-        <p class="notice small" style="margin:14px 0 0">
-            Some prices could not be updated — the last saved price is shown.
-            ${folio.holdings.filter((h) => h.quote?.failed && h.quote.error).map((h) => `<br><strong>${esc(h.stock.symbol)}:</strong> ${esc(h.quote.error)}`).join("")}
-        </p>` : ""}
-        ` : `<div class="empty"><strong>No holdings yet</strong><a href="#/stock/new">Add your first stock or ETF</a></div>`}
+        <div class="card-head"><h2>Stocks &amp; ETFs</h2>${folio.stocks.holdings.length ? `<span class="muted small">${money(folio.stocks.value)}</span>` : ""}</div>
+        ${folio.stocks.holdings.length ? holdingsHtml(folio.stocks.holdings, quoteStatus)
+            : `<div class="empty"><strong>No stocks yet</strong><a href="#/stock/new">Add your first stock or ETF</a></div>`}
     </section>
+
+    <section class="card" style="margin-top:16px">
+        <div class="card-head"><h2>Crypto</h2>${folio.crypto.holdings.length ? `<span class="muted small">${money(folio.crypto.value)}</span>` : ""}</div>
+        ${folio.crypto.holdings.length ? holdingsHtml(folio.crypto.holdings, quoteStatus)
+            : `<div class="empty"><strong>No crypto yet</strong><a href="#/crypto/new">Add Bitcoin, Ethereum or any other coin</a></div>`}
+        ${folio.crypto.holdings.length ? `<p class="faint small" style="margin:12px 0 0">Crypto prices by <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>.</p>` : ""}
+    </section>
+
+    ${folio.hasFailedRefresh ? `
+    <p class="notice small" style="margin:14px 0 0">
+        Some prices could not be updated. The last saved price is shown.
+        ${folio.holdings.filter((h) => h.quote?.failed && h.quote.error).map((h) => `<br><strong>${esc(h.stock.symbol)}:</strong> ${esc(h.quote.error)}`).join("")}
+    </p>` : ""}
     <p class="faint small" style="margin-top:12px">Prices may be delayed up to 15 minutes and refresh automatically when older than that. Not investment advice.</p>`;
+    bindHistoryCard(el);
 
     el.querySelector("[data-refresh]")?.addEventListener("click", async (event) => {
         const button = event.currentTarget;
@@ -205,9 +173,11 @@ export function assetsView({ el, rerender }) {
         if (result.updated) toast(`Updated ${plural(result.updated, "price")}.`);
         if (result.errors.length) toast(result.errors.slice(0, 2).join(" "), "error");
         if (!result.updated && !result.errors.length) toast("All prices are already up to date.");
+        await recordPortfolioHistory();
         rerender();
     });
     if (folio.needsRefresh) refreshQuotesIfStale();
+    else recordPortfolioHistory();
 }
 
 // ------------------------------------------------------------- asset forms
@@ -379,11 +349,12 @@ export function assetValueView({ el, params }) {
 export function stockFormView({ el, params }) {
     const stock = params.id ? store.get("stocks", params.id) : null;
     if (params.id && !stock) return notFound(el, "holding");
+    const crypto = isCrypto(stock);
     const day = today();
     const fields = [
-        { name: "symbol", label: "Stock ticker", value: stock?.symbol || "", placeholder: "e.g. AAPL", disabled: !!stock, maxlength: 15 },
-        { name: "shares", label: "Number of shares", type: "decimal", value: stock ? String(stock.shares) : "", help: "Fractional shares are supported, such as 1.5." },
-        { name: "averageCost", label: stock ? "Average cost per share" : "Price paid per share", type: "decimal", value: stock ? String(stock.averageCost) : "", help: stock ? "Shown in your brokerage app as “average cost”." : "For several purchases, enter your brokerage’s “average cost”." },
+        { name: "symbol", label: crypto ? "Coin" : "Stock ticker", value: stock ? (crypto && stock.name ? `${stock.name} (${stock.symbol})` : stock.symbol) : "", placeholder: "e.g. AAPL", disabled: !!stock, maxlength: 15 },
+        { name: "shares", label: crypto ? "Amount you hold" : "Number of shares", type: "decimal", value: stock ? String(stock.shares) : "", help: crypto ? "Fractions are fine, such as 0.0125." : "Fractional shares are supported, such as 1.5." },
+        { name: "averageCost", label: crypto ? "Average cost per coin" : stock ? "Average cost per share" : "Price paid per share", type: "decimal", value: stock ? String(stock.averageCost) : "", help: stock ? "Shown in your brokerage app as “average cost”." : "For several purchases, enter your brokerage’s “average cost”." },
         { name: "price", label: "Current price (optional)", type: "decimal", help: "Leave blank to fetch the live price automatically. Fill it in for funds the price service does not cover (e.g. 401k funds)." },
     ];
     el.innerHTML = formPageHtml({
@@ -398,7 +369,7 @@ export function stockFormView({ el, params }) {
         symbolInput.closest(".field").insertAdjacentHTML("afterend", `<p class="notice small" data-combine hidden></p>`);
         const hint = form.querySelector("[data-combine]");
         symbolInput.addEventListener("input", () => {
-            const held = store.all("stocks").find((s) => s.symbol === symbolInput.value.trim().toUpperCase());
+            const held = store.all("stocks").find((s) => !isCrypto(s) && s.symbol === symbolInput.value.trim().toUpperCase());
             hint.hidden = !held;
             if (held) hint.innerHTML = `You already own <strong>${num(held.shares, 6)} ${esc(held.symbol)}</strong> at ${money(Math.round(held.averageCost * 100))} average. Saving adds these shares to it and works out the new average cost.`;
         });
@@ -415,7 +386,7 @@ export function stockFormView({ el, params }) {
         const errors = {};
         const symbol = stock ? stock.symbol : String(v.symbol || "").trim().toUpperCase();
         if (!stock && !/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) errors.symbol = "Enter a valid stock ticker.";
-        const held = stock ? null : store.all("stocks").find((s) => s.symbol === symbol);
+        const held = stock ? null : store.all("stocks").find((s) => s.symbol === symbol && !isCrypto(s));
         const shares = toDecimal(v.shares);
         if (shares === null || shares <= 0) errors.shares = "Enter the number of shares (more than 0).";
         const averageCost = toDecimal(v.averageCost);
@@ -443,7 +414,9 @@ export function stockFormView({ el, params }) {
             return;
         }
         if (price) {
-            await quotes.setManualPrice(symbol, price, day);
+            await quotes.setManualPrice(crypto ? saved : symbol, price, day);
+        } else if (crypto) {
+            if (!store.get("quotes", quoteKey(saved))?.price) await quotes.refreshCrypto([saved]);
         } else if (!store.get("quotes", quoteId(symbol))?.price) {
             const { ok, message } = await quotes.refreshSymbol(symbol);
             if (!ok) {
@@ -498,10 +471,10 @@ export function stockBuyView({ el, params }) {
     const day = today();
     el.innerHTML = formPageHtml({
         title: `Buy more ${stock.symbol}`,
-        description: `You have <strong>${num(stock.shares, 6)} shares</strong> at ${money(Math.round(stock.averageCost * 100))} average. Enter the new purchase and the app works out your new total and average cost.`,
+        description: `You have <strong>${num(stock.shares, 8)}${isCrypto(stock) ? ` ${esc(stock.symbol)}` : " shares"}</strong> at ${fmtPrice(stock.averageCost)} average. Enter the new purchase and the app works out your new total and average cost.`,
         fields: [
-            { name: "shares", label: "Shares bought", type: "decimal", help: "Fractional shares are supported, such as 0.5." },
-            { name: "price", label: "Price paid per share", type: "decimal" },
+            { name: "shares", label: isCrypto(stock) ? "Amount bought" : "Shares bought", type: "decimal", help: "Fractions are supported, such as 0.5." },
+            { name: "price", label: isCrypto(stock) ? "Price paid per coin" : "Price paid per share", type: "decimal" },
             { name: "date", label: "Date", type: "date", value: day },
         ],
         afterFields: `<div class="notice small" data-preview hidden></div>`,
@@ -533,7 +506,267 @@ export function stockBuyView({ el, params }) {
         const after = combinePurchase(stock.shares, stock.averageCost, shares, price);
         const current = store.get("stocks", stock.id) || stock;
         await store.save("stocks", { ...current, ...after, purchases: [...purchasesOf(current), { date, shares, price, kind: "buy" }] });
-        toast(`${stock.symbol}: now ${num(after.shares, 6)} shares at ${money(Math.round(after.averageCost * 100))} average.`);
+        toast(`${stock.symbol}: now ${num(after.shares, 8)}${isCrypto(stock) ? "" : " shares"} at ${fmtPrice(after.averageCost)} average.`);
+        await recordPortfolioHistory();
         navigate("/assets");
     });
 }
+
+// ------------------------------------------------------------- holdings list
+
+/** Prices: cents for normal prices, more decimals for coins worth under $1. */
+function fmtPrice(p) {
+    if (p === null || p === undefined) return "—";
+    return p >= 1 ? money(Math.round(p * 100)) : money(p * 100, p >= 0.01 ? 4 : 8);
+}
+
+function holdingsHtml(list, quoteStatus) {
+    const crypto = isCrypto(list[0]?.stock);
+    const unit = crypto ? "Amount" : "Shares";
+    const qty = (h) => num(h.stock.shares, crypto ? 8 : 6);
+    const named = (h) => crypto && h.stock.name && h.stock.name !== h.stock.symbol;
+    const label = (h) => (named(h) ? `<div class="small faint">${esc(h.stock.name)}</div>` : "");
+    return `
+        <div class="table-wrap holdings-table">
+            <table>
+                <thead><tr>
+                    <th>${crypto ? "Coin" : "Symbol"}</th><th class="num">${unit}</th><th class="num">Price</th><th class="num">Value</th>
+                    <th class="num">Avg cost</th><th class="num">Gain / loss</th><th class="num">Weight</th><th></th>
+                </tr></thead>
+                <tbody>
+                ${list.map((h) => `
+                <tr>
+                    <td>
+                        <div class="ticker">${esc(h.stock.symbol)}</div>${label(h)}
+                        <div class="small ${h.quote?.failed ? "bad" : "faint"}" title="${esc(h.quote?.error || "")}">${quoteStatus(h)}</div>
+                    </td>
+                    <td class="num">${qty(h)}</td>
+                    <td class="num">${fmtPrice(h.price)}</td>
+                    <td class="num"><strong>${money(h.marketValue)}</strong></td>
+                    <td class="num">${fmtPrice(h.stock.averageCost)}</td>
+                    <td class="num ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)}<div class="small">${signedPct(h.gainPct)}</div></td>
+                    <td class="num">${pct(h.weight, 0)}</td>
+                    <td class="num" style="white-space:nowrap"><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a><a class="btn btn-ghost btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a></td>
+                </tr>`).join("")}
+                </tbody>
+            </table>
+        </div>
+        ${list.map((h) => `
+        <div class="holding-card">
+            <div class="holding-top">
+                <div>
+                    <div class="ticker">${esc(h.stock.symbol)}${named(h) ? ` <span class="small faint" style="font-weight:500">${esc(h.stock.name)}</span>` : ""}</div>
+                    <div class="small ${h.quote?.failed ? "bad" : "faint"}">${h.quote?.failed ? "Update failed" : h.quote?.date ? `${fmtPrice(h.price)} · ${esc(fmtDayNoYear(h.quote.date))}` : "No price yet"}</div>
+                </div>
+                <div style="text-align:right">
+                    <div class="row-amount">${money(h.marketValue)}</div>
+                    <div class="small ${gainClass(h.gainLoss)}">${signedMoney(h.gainLoss)} (${signedPct(h.gainPct)})</div>
+                </div>
+            </div>
+            <div class="holding-meta">
+                <div><span>${unit}</span>${num(h.stock.shares, crypto ? 8 : 4)}</div>
+                <div><span>Avg cost</span>${fmtPrice(h.stock.averageCost)}</div>
+                <div><span>Weight</span>${pct(h.weight, 0)}</div>
+            </div>
+            <div class="cc-actions" style="margin-top:8px">
+                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}/buy">Buy more</a>
+                <a class="btn btn-secondary btn-small" href="#/stock/${encodeURIComponent(h.stock.id)}">Edit</a>
+            </div>
+        </div>`).join("")}`;
+}
+
+// ---------------------------------------------------------- value history chart
+
+let historyRange = "1M";
+
+function historyCardHtml() {
+    return `
+    <section class="card history-card" style="margin-top:16px" data-history>
+        <div class="history-head">
+            <div class="stat-label">Investments</div>
+            <div class="history-value" data-hv></div>
+            <div class="history-change" data-hc></div>
+        </div>
+        <div class="history-chart" data-chart></div>
+        <div class="history-ranges" role="group" aria-label="Time range">
+            ${HISTORY_RANGES.map(([k, l]) => `<button type="button" data-range="${k}" title="${esc(l)}" aria-pressed="${k === historyRange}">${k}</button>`).join("")}
+        </div>
+    </section>`;
+}
+
+function bindHistoryCard(el) {
+    const card = el.querySelector("[data-history]");
+    if (!card) return;
+    const draw = () => {
+        const day = today();
+        const pts = historySeries(store.all("portfolioHistory"), historyRange, day);
+        const label = HISTORY_RANGES.find(([k]) => k === historyRange)[1];
+        card.querySelectorAll("[data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === historyRange)));
+        const $v = card.querySelector("[data-hv]");
+        const $c = card.querySelector("[data-hc]");
+        const $chart = card.querySelector("[data-chart]");
+        const latest = store.all("portfolioHistory").sort((a, b) => b.date.localeCompare(a.date))[0];
+        const setHeader = (value, base, when) => {
+            $v.textContent = money(value);
+            const diff = value - base;
+            const cls = diff > 0 ? "good" : diff < 0 ? "bad" : "muted";
+            $c.innerHTML = `<span class="${cls}">${diff >= 0 ? "+" : "−"}${money(Math.abs(diff))} (${base ? signedPct((diff / base) * 100) : "0.00%"})</span> <span class="muted">${esc(when)}</span>`;
+        };
+        if (pts.length < 2) {
+            card.classList.remove("up", "down");
+            $v.textContent = latest ? money(latest.valueCents) : "—";
+            $c.innerHTML = `<span class="muted">Not enough history yet</span>`;
+            $chart.innerHTML = `<div class="history-empty">The chart starts on the first day the app saved your portfolio value${latest ? ` (${esc(fmtDay(store.all("portfolioHistory").sort((a, b) => a.date.localeCompare(b.date))[0].date))})` : ""} and fills in as you keep opening the app. Free price services don’t provide past stock prices, so earlier days can’t be filled in.</div>`;
+            return;
+        }
+        const first = pts[0].v;
+        const last = pts[pts.length - 1].v;
+        card.classList.toggle("up", last >= first);
+        card.classList.toggle("down", last < first);
+        setHeader(last, first, label);
+        // SVG line chart, Robinhood style: one line, dotted starting level, scrub to read values.
+        const W = 600, H = 190, PAD = 10;
+        const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+        const vals = pts.map((p) => p.v);
+        let lo = Math.min(...vals), hi = Math.max(...vals);
+        if (hi === lo) { hi += 100; lo -= 100; }
+        const x = (t) => (t1 === t0 ? W / 2 : ((t - t0) / (t1 - t0)) * W);
+        const y = (v) => PAD + (1 - (v - lo) / (hi - lo)) * (H - 2 * PAD);
+        const path = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+        $chart.innerHTML = `
+            <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Portfolio value, ${esc(label)}: from ${esc(money(first))} to ${esc(money(last))}">
+                <line class="history-base" x1="0" x2="${W}" y1="${y(first).toFixed(1)}" y2="${y(first).toFixed(1)}"/>
+                <path class="history-line" d="${path}" vector-effect="non-scaling-stroke"/>
+                <line class="history-cursor" x1="0" x2="0" y1="0" y2="${H}" style="display:none" vector-effect="non-scaling-stroke"/>
+            </svg>
+            <span class="history-dot" hidden></span>
+            <span class="history-tip" hidden></span>`;
+        const svg = $chart.querySelector("svg");
+        const cursor = $chart.querySelector(".history-cursor");
+        const dot = $chart.querySelector(".history-dot");
+        const tip = $chart.querySelector(".history-tip");
+        const when = (p) => (p.intraday && !p.previousClose ? new Date(p.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : fmtDay(p.day));
+        const move = (clientX) => {
+            const box = svg.getBoundingClientRect();
+            const fx = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+            const t = t0 + fx * (t1 - t0);
+            const p = pts.reduce((best, q) => (Math.abs(q.t - t) < Math.abs(best.t - t) ? q : best), pts[0]);
+            const px = x(p.t), py = y(p.v);
+            cursor.setAttribute("x1", px); cursor.setAttribute("x2", px); cursor.style.display = "";
+            dot.hidden = false;
+            dot.style.left = `${(px / W) * 100}%`;
+            dot.style.top = `${(py / H) * 100}%`;
+            tip.hidden = false;
+            tip.textContent = when(p);
+            tip.style.left = `${Math.min(88, Math.max(12, (px / W) * 100))}%`;
+            setHeader(p.v, first, ""); // the date is shown above the cursor
+        };
+        const leave = () => { cursor.style.display = "none"; dot.hidden = true; tip.hidden = true; setHeader(last, first, label); };
+        svg.addEventListener("pointermove", (e) => move(e.clientX));
+        svg.addEventListener("pointerdown", (e) => move(e.clientX));
+        svg.addEventListener("pointerleave", leave);
+        svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") leave(); });
+    };
+    card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => { historyRange = b.dataset.range; draw(); }));
+    draw();
+}
+
+/** Save today's portfolio value for the chart (only when every price is loaded). */
+export async function recordPortfolioHistory() {
+    const day = today();
+    const record = historySnapshot(portfolio(store.snapshot()), store.get("portfolioHistory", historyId(day)), day);
+    if (record) await store.save("portfolioHistory", record);
+}
+
+// ------------------------------------------------------------------ crypto
+
+/** Add a coin (#/crypto/new): search CoinGecko, then quantity and cost. */
+export function cryptoFormView({ el }) {
+    const day = today();
+    el.innerHTML = formPageHtml({
+        title: "Add crypto",
+        description: "Search for the coin, then enter how much you hold and what you paid. Prices update automatically from CoinGecko (no key needed).",
+        fields: [
+            { name: "query", label: "Coin", placeholder: "e.g. Bitcoin or BTC", maxlength: 60, attrs: 'autocomplete="off" autocapitalize="off" spellcheck="false"' },
+            { name: "shares", label: "Amount you hold", type: "decimal", help: "Fractions are fine, such as 0.0125 BTC." },
+            { name: "averageCost", label: "Price paid per coin", type: "decimal", help: "For several purchases, use the average cost shown by your exchange." },
+            { name: "price", label: "Current price (optional)", type: "decimal", help: "Leave blank to fetch it automatically." },
+        ],
+        submitLabel: "Add coin",
+        cancelHref: "#/assets",
+    });
+    const form = el.querySelector("[data-form]");
+    const query = form.querySelector("[name=query]");
+    query.closest(".field").insertAdjacentHTML("beforeend", `<div class="coin-results" data-results></div><p class="notice small" data-picked hidden></p>`);
+    const results = form.querySelector("[data-results]");
+    const picked = form.querySelector("[data-picked]");
+    let coin = null;
+    let timer = null;
+    let seq = 0;
+    const pick = (c) => {
+        coin = c;
+        results.innerHTML = "";
+        picked.hidden = false;
+        const held = store.all("stocks").find((s) => isCrypto(s) && s.coinId === c.id);
+        picked.innerHTML = `Selected <strong>${esc(c.name)} (${esc(c.symbol)})</strong>.${held ? ` You already hold ${num(held.shares, 8)} ${esc(held.symbol)}; this adds to it and works out the new average cost.` : ""} <button type="button" class="link" data-change>Change</button>`;
+        picked.querySelector("[data-change]").addEventListener("click", () => { coin = null; picked.hidden = true; query.value = ""; query.focus(); });
+        query.value = `${c.name} (${c.symbol})`;
+    };
+    const search = async () => {
+        const q = query.value.trim();
+        const mine = ++seq;
+        if (q.length < 2) { results.innerHTML = ""; return; }
+        results.innerHTML = `<p class="muted small">Searching…</p>`;
+        try {
+            const found = await quotes.searchCoins(q);
+            if (mine !== seq) return;
+            results.innerHTML = found.length ? found.map((c, i) => `
+                <button type="button" class="row coin-option" data-i="${i}">
+                    ${c.thumb ? `<img src="${esc(c.thumb)}" alt="" width="22" height="22" loading="lazy">` : ""}
+                    <span class="row-main"><span class="row-title">${esc(c.name)}</span> <span class="faint small">${esc(c.symbol)}${c.rank ? ` · #${c.rank}` : ""}</span></span>
+                </button>`).join("") : `<p class="muted small">No coins match “${esc(q)}”.</p>`;
+            results.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => pick(found[Number(b.dataset.i)])));
+        } catch (error) {
+            if (mine !== seq) return;
+            // Offline or CoinGecko unavailable: still allow adding it with a typed symbol and price.
+            results.innerHTML = `<p class="muted small">${esc(error.message)} You can still add it: type its symbol (e.g. BTC) and enter the current price yourself.</p>`;
+        }
+    };
+    query.addEventListener("input", () => {
+        if (coin) { coin = null; picked.hidden = true; }
+        clearTimeout(timer);
+        timer = setTimeout(search, 350);
+    });
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const v = readForm(form);
+        const errors = {};
+        let chosen = coin;
+        const typed = String(v.query || "").trim().toUpperCase();
+        if (!chosen && /^[A-Z0-9]{2,10}$/.test(typed)) chosen = { id: `manual-${typed.toLowerCase()}`, symbol: typed, name: typed, manual: true };
+        if (!chosen) errors.query = "Search and pick a coin from the list.";
+        const shares = toDecimal(v.shares);
+        if (shares === null || shares <= 0) errors.shares = "Enter the amount you hold (more than 0).";
+        const averageCost = toDecimal(v.averageCost);
+        if (averageCost === null || averageCost < 0) errors.averageCost = "Enter the price you paid (0 or more).";
+        const priceText = String(v.price || "").trim();
+        const price = priceText ? toDecimal(priceText) : null;
+        if (priceText && (price === null || price <= 0)) errors.price = "Enter a price greater than 0, or leave it blank.";
+        if (chosen?.manual && !price) errors.price = "This coin wasn’t found on CoinGecko, so enter its current price.";
+        if (showErrors(form, errors)) return;
+        const held = store.all("stocks").find((s) => isCrypto(s) && s.coinId === chosen.id);
+        const saved = held
+            ? { ...held, ...combinePurchase(held.shares, held.averageCost, shares, averageCost), purchases: [...purchasesOf(held), { date: day, shares, price: averageCost, kind: "buy" }] }
+            : { id: newId(), createdAt: new Date().toISOString(), assetType: "crypto", coinId: chosen.id, symbol: chosen.symbol, name: chosen.name, shares, averageCost, purchases: [{ date: day, shares, price: averageCost, kind: "start" }] };
+        await store.save("stocks", saved);
+        if (price) await quotes.setManualPrice(saved, price, day);
+        else if (!store.get("quotes", quoteKey(saved))?.price) {
+            const r = await quotes.refreshCrypto([saved]);
+            if (r.failed) toast(`Saved ${saved.symbol}, but the price could not be fetched: ${r.errors[0] || ""}`, "error");
+        }
+        if (!toastShownForFailure(saved)) toast(held ? `Added ${num(shares, 8)} ${saved.symbol}: now ${num(saved.shares, 8)} at ${fmtPrice(saved.averageCost)} average.` : `${saved.symbol} added.`);
+        await recordPortfolioHistory();
+        navigate("/assets");
+    });
+}
+const toastShownForFailure = (saved) => !!store.get("quotes", quoteKey(saved))?.failed;

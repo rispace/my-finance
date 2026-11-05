@@ -6,7 +6,7 @@
 import { pickNewer } from "./merge.js";
 
 const DB_NAME = "finance-drive";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 // Order doesn't matter. New collections can be added any time: bump
 // DB_VERSION and the upgrade below creates the missing stores.
 export const COLLECTIONS = [
@@ -18,6 +18,7 @@ export const COLLECTIONS = [
     "assets", "assetValuations",
     "stocks", "quotes",
     "prefs",                                                     // small settings, e.g. investment cash, Finnhub key
+    "portfolioHistory",                                          // v4: one portfolio value per day, for the chart
 ];
 
 let dbPromise = null;

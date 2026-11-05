@@ -879,3 +879,27 @@ button.link:hover { background: none; text-decoration: underline; }
 }
 .filter-total { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; background: var(--accent-soft); border-color: transparent; }
 .filter-total .stat-value { color: var(--accent-strong); }
+
+/* Investments: value chart (Robinhood-style) */
+.history-card { --line: var(--muted); }
+.history-card.up { --line: var(--good); }
+.history-card.down { --line: var(--bad); }
+.history-value { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.history-change { font-size: 14px; font-weight: 600; margin-top: 2px; min-height: 20px; }
+.history-chart { position: relative; height: 190px; margin: 14px 0 8px; touch-action: pan-y; }
+.history-chart svg { display: block; width: 100%; height: 100%; overflow: visible; cursor: crosshair; }
+.history-line { fill: none; stroke: var(--line); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.history-base { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; }
+.history-cursor { stroke: var(--faint); stroke-width: 1; }
+.history-dot { position: absolute; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--line); border: 2px solid var(--surface); pointer-events: none; }
+.history-tip { position: absolute; top: -18px; transform: translateX(-50%); font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; pointer-events: none; }
+.history-empty { height: 100%; display: grid; place-items: center; text-align: center; padding: 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+.history-ranges { display: flex; gap: 2px; border-top: 1px solid var(--border); padding-top: 10px; overflow-x: auto; }
+.history-ranges button { appearance: none; border: 0; background: none; box-shadow: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; padding: 6px 10px; min-height: 32px; border-radius: 8px; cursor: pointer; }
+.history-ranges button:hover { background: var(--surface-2); color: var(--text); }
+.history-ranges button[aria-pressed="true"] { color: var(--line); background: var(--surface-2); }
+/* Crypto search */
+.coin-results { margin-top: 6px; display: grid; }
+.coin-results:empty { display: none; }
+.coin-option { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; }
+.coin-option img { border-radius: 50%; flex: none; }
